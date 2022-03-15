@@ -5,7 +5,13 @@ def active_smapling():
 def query_weak_annotations():
     return
 
-def pseudo_labels():
+def pseudo_labels(model, sample, weak_annotations):
+    #predict bounding boxes
+    #use weak labels to choose best possible bounding box
+    #   - for every click location, we pseudo label that object with a
+    #     bounding-box with center closest to the click location.
+    #   - The object is classified as the class with the
+    #     highest probability for the chosen bounding box
     return
 
 def query_annotations():
