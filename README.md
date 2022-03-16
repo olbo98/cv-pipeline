@@ -1,2 +1,2 @@
 # cv-pipline
-A computer vision pipeline
+A computer vision pipeline for Voi Technology AB
