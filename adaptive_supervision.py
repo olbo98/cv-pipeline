@@ -7,12 +7,13 @@ def active_smapling():
 def query_weak_annotations():
     return
 
+#Calculates distance from the bounding box's center to the position of the weak annotation
 def dist_from_point(box, weak_annotation):
     box_x1 = box[0]
     box_x2 = box[2]
     box_y1 = box[1]
     box_y2 = box[3]
-    box_center = (math.abs(box_x2 - box_x1)/2, math.abs(box_y1 - box_y2)/2)
+    box_center = (abs(box_x2 - box_x1)/2.0, abs(box_y1 - box_y2)/2.0)
     dist = math.sqrt(math.pow(box_center[0] - weak_annotation[0], 2) + math.pow(box_center[1] - weak_annotation[1], 2))
     return dist
 
