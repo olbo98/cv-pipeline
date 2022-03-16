@@ -6,6 +6,7 @@ def query_weak_annotations():
     return
 
 def pseudo_labels(model, sample, weak_annotations):
+    boxes, scores, classes, nums = model.predict()
     #predict bounding boxes
     #use weak labels to choose best possible bounding box
     #   - for every click location, we pseudo label that object with a
