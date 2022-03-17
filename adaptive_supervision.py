@@ -38,11 +38,12 @@ def pseudo_labels(model, sample, weak_annotations):
     #     bounding-box with center closest to the click location.
     #   - The object is classified as the class with the
     #     highest probability for the chosen bounding box
+    #TODO: Need to return confidence scores. Also the classes need to be paired with the boxes
     chosen_bounding_boxes = []
     for image, annotations in zip(sample, weak_annotations):
-        boxes, _, _, _ = model.predict(image)
+        boxes, scores, classes, _ = model.predict(image)
         for annotation in annotations:
-            closest_box = find_closest_box(boxes, annotation)
+            closest_box = find_closest_box(boxes[0], annotation)
             chosen_bounding_boxes.append(closest_box)
     return chosen_bounding_boxes
 
