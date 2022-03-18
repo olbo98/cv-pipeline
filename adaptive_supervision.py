@@ -38,18 +38,23 @@ def pseudo_labels(model, sample, weak_annotations):
     #     bounding-box with center closest to the click location.
     #   - The object is classified as the class with the
     #     highest probability for the chosen bounding box
-    #TODO: Need to return confidence scores. Also the classes need to be paired with the boxes
-    pseudo_labels = []
+    #   - For each image we calculate the confidence score wich is the mean score
+    #     which is the mean probability score obtained for each predicted object
+    labels_and_confidence = []
     for image, annotations in zip(sample, weak_annotations):
+        pseudo_labels = []
         boxes, scores, classes, _ = model.predict(image)
         for annotation in annotations:
             closest_box = find_closest_box(boxes[0], scores[0], classes[0], annotation)
             pseudo_labels.append(closest_box)
-    confidence_score = 0
-    for label in pseudo_labels:
-        confidence_score += label[1]
-    confidence_score = confidence_score/len(pseudo_labels)
-    return (pseudo_labels, confidence_score)
+        confidence_score = 0
+
+        for label in pseudo_labels:
+            confidence_score += label[1]
+        confidence_score = confidence_score/len(pseudo_labels)
+        labels_and_confidence.append((pseudo_labels, confidence_score))
+
+    return labels_and_confidence
 
 def query_annotations():
     return
