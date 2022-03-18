@@ -21,13 +21,13 @@ def dist_from_point(box, weak_annotation):
     return dist
 
 #finds the bounding box with its center closest to the weak annotation
-def find_closest_box(bounding_boxes, annotation):
-    closest_box = []
+def find_closest_box(bounding_boxes, scores, classes, annotation):
+    closest_box = ()
     closest_distance = float('inf')
-    for box in bounding_boxes:
+    for box, score, c in zip(bounding_boxes, scores, classes):
         dist = dist_from_point(box, annotation)
         if dist < closest_distance:
-            closest_box = box
+            closest_box = (box, score, c)
             closest_distance = dist
     return closest_box
 
@@ -39,13 +39,17 @@ def pseudo_labels(model, sample, weak_annotations):
     #   - The object is classified as the class with the
     #     highest probability for the chosen bounding box
     #TODO: Need to return confidence scores. Also the classes need to be paired with the boxes
-    chosen_bounding_boxes = []
+    pseudo_labels = []
     for image, annotations in zip(sample, weak_annotations):
         boxes, scores, classes, _ = model.predict(image)
         for annotation in annotations:
-            closest_box = find_closest_box(boxes[0], annotation)
-            chosen_bounding_boxes.append(closest_box)
-    return chosen_bounding_boxes
+            closest_box = find_closest_box(boxes[0], scores[0], classes[0], annotation)
+            pseudo_labels.append(closest_box)
+    confidence_score = 0
+    for label in pseudo_labels:
+        confidence_score += label[1]
+    confidence_score = confidence_score/len(pseudo_labels)
+    return (pseudo_labels, confidence_score)
 
 def query_annotations():
     return

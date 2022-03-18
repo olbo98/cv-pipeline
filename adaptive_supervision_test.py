@@ -12,8 +12,10 @@ class TestDistFromPoint(unittest.TestCase):
 class TestFindClosestBox(unittest.TestCase):
     def test_find_closes_box(self):
         boxes = [[0.0, 0.0, 4.0, 4.0], [6.0, 5.0, 8.0, 7.0], [3.0, 1.0, 7.0, 5.0]]
+        scores = [0,98, 0.99, 0.95]
+        classes = [1, 2, 3]
         annotation = (4.0, 4.0)
-        self.assertEqual(find_closest_box(boxes, annotation), boxes[2], "Should be [3.0, 1.0, 7.0, 5.0]")
+        self.assertEqual(find_closest_box(boxes, scores, classes, annotation), (boxes[2], scores[2], classes[2]), "Should be ([3.0, 1.0, 7.0, 5.0], 0.95, 3)")
 
 if __name__ == "__main__":
     unittest.main()
