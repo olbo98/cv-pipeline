@@ -41,7 +41,7 @@ def pseudo_labels(model, sample, weak_annotations):
     #   - For each image we calculate the confidence score wich is the mean score
     #     which is the mean probability score obtained for each predicted object
     labels_and_confidence = []
-    for image, annotations in zip(sample, weak_annotations):
+    for i, (image, annotations) in enumerate(zip(sample, weak_annotations)):
         pseudo_labels = []
         boxes, scores, classes, _ = model.predict(image)
         for annotation in annotations:
@@ -52,7 +52,7 @@ def pseudo_labels(model, sample, weak_annotations):
         for label in pseudo_labels:
             confidence_score += label[1]
         confidence_score = confidence_score/len(pseudo_labels)
-        labels_and_confidence.append((pseudo_labels, confidence_score))
+        labels_and_confidence.append((pseudo_labels, confidence_score, i))
 
     return labels_and_confidence
 
