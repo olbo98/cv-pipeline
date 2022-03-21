@@ -5,7 +5,7 @@ import math
 def active_smapling():
     return
 
-def query_weak_annotations():
+def query_weak_annotations(samples):
     return
 
 #Calculates distance from the bounding box's center to the position of the weak annotation
@@ -56,18 +56,23 @@ def pseudo_labels(model, sample, weak_annotations):
 
     return labels_and_confidence
 
-def query_annotations():
+def query_strong_annotations():
     return
 
-def soft_switch(pseudo_labels, conf_thresh):
-    s_high = []
+def soft_switch(samples, pseudo_labels, conf_thresh):
+    pseudo_high = []
     s_low = []
-    for sample in pseudo_labels:
-        confidence = sample[1]
+    for pseudo_label in pseudo_labels:
+        confidence = pseudo_label[1]
+        index = pseudo_label[2]
         if confidence > conf_thresh:
-            s_high.append(sample)
+            pseudo_high.append(pseudo_label[0])
         else:
-            s_low.append(sample)
+            s_low.append(samples[index])
+    s_low_strong = query_strong_annotations(s_low)
+    return s_low_strong, pseudo_high
+    #TODO: Maybe we should return the updated labeled pool and weak labeled pool here instead?
+    #Note: Should we delete the samples from the other pools when they are inserted to the new pools? And should that be done in active_sampling?
 
 def adaptive_supervision(unlabeled_pool, labeled_pool, weak_labeled_pool, model, episode_num, sample_size, soft_switch_thresh):
     s = active_smapling()
