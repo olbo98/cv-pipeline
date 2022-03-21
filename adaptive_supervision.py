@@ -59,6 +59,16 @@ def pseudo_labels(model, sample, weak_annotations):
 def query_annotations():
     return
 
+def soft_switch(pseudo_labels, conf_thresh):
+    s_high = []
+    s_low = []
+    for sample in pseudo_labels:
+        confidence = sample[1]
+        if confidence > conf_thresh:
+            s_high.append(sample)
+        else:
+            s_low.append(sample)
+
 def adaptive_supervision(unlabeled_pool, labeled_pool, weak_labeled_pool, model, episode_num, sample_size, soft_switch_thresh):
     s = active_smapling()
     w_s = query_weak_annotations()
