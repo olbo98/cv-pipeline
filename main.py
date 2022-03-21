@@ -18,10 +18,6 @@ def main():
     controller = Controller(model,view)
     controller.start_ui()
     window.mainloop()
-    #circle_coords = model.get_circle_coords()
-    #print(circle_coords)
-    rect_coords = model.get_rect_coords()
-    print(rect_coords)
 
     
 if __name__ == "__main__":

@@ -13,7 +13,9 @@ class Controller():
             self.view.window.bind('<ButtonPress-1>', self.on_press_draw_rect)
             self.view.window.bind('<ButtonRelease-1>', self.on_release_draw_rect)
 
+        self.view.window.bind('d', self.model.delete_annotations)
         self.view.window.bind('n', self.model.next_img)
+        self.view.window.bind('q', self.view.close_window)
 
 
     def calc_circle_coords(self,event):
@@ -34,9 +36,9 @@ class Controller():
         x0,y0 = self.x, self.y
         x1,y1 = event.x, event.y
         self.view.draw_rectangle(x0,y0,x1,y1)
+        self.model.shape_IDs.append(self.view.ID)
         self.model.add_rect_coords(x0,y0,x1,y1)
-       
-
+     
 
     def start_ui(self):
         self.model.next_img()

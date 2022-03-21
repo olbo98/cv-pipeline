@@ -5,6 +5,7 @@ class Model():
         self.view = view
         self.circle_coords = {}
         self.rect_coords = {}
+        self.shape_IDs = []
         self.set_images = iter(set_images)
         self.active_image = ''
         self.path = path
@@ -16,7 +17,6 @@ class Model():
         return
 
     def query_weak_annotations(self,set_images): 
-
         return
 
     def pseudo_labels():
@@ -52,6 +52,10 @@ class Model():
 
     def add_rect_coords(self,x0,y0,x1,y1):
         self.rect_coords[self.active_image].append([x0,y0,x1,y1])
+    
+      
+    def delete_annotations(self,event=None):
+        self.view.canvas_image.delete(self.shape_IDs.pop())
 
     def prepare_imgs(self):
          while True:
