@@ -1,5 +1,8 @@
 import math
 
+#Sample images from dataset using a Least Confident method.
+#Confidence for an image is calculated as the highest bounding box probability in that image
+#Images with the least confidence are selected
 def active_smapling(model, dataset, sample_size):
     highest_scores = []
     for image in dataset:
