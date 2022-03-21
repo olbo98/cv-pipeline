@@ -13,12 +13,16 @@ def main():
     
     window = tk.Tk()
     
-    view = View(window)
+    view = View(window, weak_Annotations=False)
     model = Model(view,set_images,path)
     controller = Controller(model,view)
     controller.start_ui()
     window.mainloop()
-    circle_coords = model.get_circle_coords()
-    print(circle_coords)
+    #circle_coords = model.get_circle_coords()
+    #print(circle_coords)
+    rect_coords = model.get_rect_coords()
+    print(rect_coords)
+
+    
 if __name__ == "__main__":
     main()

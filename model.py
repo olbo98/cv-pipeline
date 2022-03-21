@@ -4,6 +4,7 @@ class Model():
     def __init__(self, view: View,set_images,path):
         self.view = view
         self.circle_coords = {}
+        self.rect_coords = {}
         self.set_images = iter(set_images)
         self.active_image = ''
         self.path = path
@@ -15,6 +16,7 @@ class Model():
         return
 
     def query_weak_annotations(self,set_images): 
+
         return
 
     def pseudo_labels():
@@ -41,15 +43,22 @@ class Model():
 
     def get_circle_coords(self):
         return self.circle_coords
+    
+    def get_rect_coords(self):
+        return self.rect_coords
 
     def add_circle_coords(self,x,y):
         self.circle_coords[self.active_image].append([x,y])
+
+    def add_rect_coords(self,x0,y0,x1,y1):
+        self.rect_coords[self.active_image].append([x0,y0,x1,y1])
 
     def prepare_imgs(self):
          while True:
             try:
                 image = next(self.set_images)
                 self.circle_coords[image] = []
+                self.rect_coords[image] = []
             except StopIteration:
                 break
 
