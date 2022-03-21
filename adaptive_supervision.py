@@ -14,7 +14,7 @@ def active_smapling(model, dataset, sample_size):
     least_confident_samples = [row[0] for row in sorted_images_and_scores[0:sample_size]]
     return least_confident_samples
 
-def query_weak_annotations():
+def query_weak_annotations(samples):
     return
 
 #Calculates distance from the bounding box's center to the position of the weak annotation
@@ -50,7 +50,7 @@ def pseudo_labels(model, sample, weak_annotations):
     #   - For each image we calculate the confidence score wich is the mean score
     #     which is the mean probability score obtained for each predicted object
     labels_and_confidence = []
-    for image, annotations in zip(sample, weak_annotations):
+    for i, (image, annotations) in enumerate(zip(sample, weak_annotations)):
         pseudo_labels = []
         boxes, scores, classes, _ = model.predict(image)
         for annotation in annotations:
@@ -61,12 +61,27 @@ def pseudo_labels(model, sample, weak_annotations):
         for label in pseudo_labels:
             confidence_score += label[1]
         confidence_score = confidence_score/len(pseudo_labels)
-        labels_and_confidence.append((pseudo_labels, confidence_score))
+        labels_and_confidence.append((pseudo_labels, confidence_score, i))
 
     return labels_and_confidence
 
-def query_annotations():
+def query_strong_annotations():
     return
+
+def soft_switch(samples, pseudo_labels, conf_thresh):
+    pseudo_high = []
+    s_low = []
+    for pseudo_label in pseudo_labels:
+        confidence = pseudo_label[1]
+        index = pseudo_label[2]
+        if confidence > conf_thresh:
+            pseudo_high.append(pseudo_label[0])
+        else:
+            s_low.append(samples[index])
+    s_low_strong = query_strong_annotations(s_low)
+    return s_low_strong, pseudo_high
+    #TODO: Maybe we should return the updated labeled pool and weak labeled pool here instead?
+    #Note: Should we delete the samples from the other pools when they are inserted to the new pools? And should that be done in active_sampling?
 
 def adaptive_supervision(unlabeled_pool, labeled_pool, weak_labeled_pool, model, episode_num, sample_size, soft_switch_thresh):
     s = active_smapling()
