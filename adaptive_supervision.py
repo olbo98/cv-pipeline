@@ -1,9 +1,18 @@
-
-from gettext import find
 import math
 
-def active_smapling():
-    return
+#Sample images from dataset using a Least Confident method.
+#Confidence for an image is calculated as the highest bounding box probability in that image
+#Images with the least confidence are selected
+def active_smapling(model, dataset, sample_size):
+    highest_scores = []
+    for image in dataset:
+        _, scores, _, _ = model.predict(image)
+        highest_scores.append(scores[0][0])
+    
+    images_and_scores = zip(dataset, highest_scores)
+    sorted_images_and_scores = sorted(images_and_scores, key = lambda x: x[1])
+    least_confident_samples = [row[0] for row in sorted_images_and_scores[0:sample_size]]
+    return least_confident_samples
 
 def query_weak_annotations():
     return
