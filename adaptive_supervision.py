@@ -8,8 +8,8 @@ def active_smapling(model, dataset, sample_size):
     
     images_and_scores = zip(dataset, highest_scores)
     sorted_images_and_scores = sorted(images_and_scores, key = lambda x: x[1])
-    most_confident_samples = [row[0] for row in sorted_images_and_scores[0:sample_size]]
-    return most_confident_samples
+    least_confident_samples = [row[0] for row in sorted_images_and_scores[0:sample_size]]
+    return least_confident_samples
 
 def query_weak_annotations():
     return
