@@ -1,3 +1,4 @@
+from ast import Return
 import math
 from view import View
 
@@ -9,7 +10,31 @@ class Model():
         self.shape_IDs = []
         self.active_image = ''
         self.path = path
+        self.strong_annotations = False
 
+    def handle_buttonpress(self, event):
+        if self.strong_annotations:
+            self.x = event.x
+            self.y = event.y
+        else:
+            x,y = event.x, event.y
+            r = 8
+            x0 = x - r
+            y0 = y - r
+            x1 = x + r
+            y1 = y + r
+            self.view.draw_circle(x0,y0,x1,y1)
+            self.shape_IDs.append(self.view.ID)
+            self.add_circle_coords(x,y)
+    
+
+    def handle_buttonrelease(self, event):
+        if self.strong_annotations:
+            x0,y0 = self.x, self.y
+            x1,y1 = event.x, event.y
+            self.view.draw_rectangle(x0,y0,x1,y1)
+            self.shape_IDs.append(self.view.ID)
+            self.add_rect_coords(x0,y0,x1,y1)
 
     #Sample images from dataset using a Least Confident method.
     #Confidence for an image is calculated as the highest bounding box probability in that image
@@ -26,6 +51,7 @@ class Model():
         return least_confident_samples
     
     def query_weak_annotations(self,set_images): 
+        self.strong_annotations = False
         self.view.draw_weak_Annotations()
         self.set_images = iter(set_images)
         self.next_img()
@@ -82,8 +108,14 @@ class Model():
 
         return labels_and_confidence
 
-    def query_strong_annotations(self):
-        return
+    def query_strong_annotations(self,set_images):
+        self.strong_annotations = True
+        self.view.draw_strong_Annotations()
+        self.set_images = iter(set_images)
+        self.next_img()
+        rectangle_coords = self.get_rect_coords()
+        self.view.window.mainloop()
+        return rectangle_coords
 
     def soft_switch(self, samples, pseudo_labels, conf_thresh):
         pseudo_high = []
@@ -131,16 +163,9 @@ class Model():
       
     def delete_annotations(self,event=None):
         self.view.canvas_image.delete(self.shape_IDs.pop())
-
-    ''''
-    def prepare_imgs(self):
-         while True:
-            try:
-                image = next(self.set_images)
-                self.circle_coords[image] = []
-                self.rect_coords[image] = []
-            except StopIteration:
-                break
-    '''
+        if self.strong_annotations:
+            del self.rect_coords[self.active_image][-1]
+        else:
+            del self.circle_coords[self.active_image][-1]
 
 
