@@ -3,16 +3,13 @@ import math
 from view import View
 
 class Model():
-    def __init__(self, view: View,set_images,path):
+    def __init__(self, view: View,path, circle_coords, rect_coords):
         self.view = view
-        self.circle_coords = {}
-        self.rect_coords = {}
+        self.circle_coords = circle_coords
+        self.rect_coords = rect_coords
         self.shape_IDs = []
-        self.set_images = iter(set_images)
         self.active_image = ''
         self.path = path
-        self.prepare_imgs()
-        self.set_images = iter(set_images)
         self.strong_annotations = False
 
     def handle_buttonpress(self, event):
@@ -51,9 +48,16 @@ class Model():
         sorted_images_and_scores = sorted(images_and_scores, key = lambda x: x[1])
         least_confident_samples = [row[0] for row in sorted_images_and_scores[0:sample_size]]
         return least_confident_samples
-
+    
     def query_weak_annotations(self,set_images): 
-        return
+        self.strong_annotations = False
+        self.view.draw_weak_Annotations()
+        self.set_images = iter(set_images)
+        self.next_img()
+        circle_coords = self.get_circle_coords()
+        self.view.window.mainloop()
+        print("hej")
+        return circle_coords
 
    #Calculates distance from the bounding box's center to the position of the weak annotation
     def dist_from_point(self, box, weak_annotation):
@@ -153,6 +157,7 @@ class Model():
     def delete_annotations(self,event=None):
         self.view.canvas_image.delete(self.shape_IDs.pop())
 
+    ''''
     def prepare_imgs(self):
          while True:
             try:
@@ -161,6 +166,6 @@ class Model():
                 self.rect_coords[image] = []
             except StopIteration:
                 break
-
+    '''
 
 
