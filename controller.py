@@ -6,8 +6,8 @@ class Controller():
     def __init__(self, model: Model, view: View):
         self.model = model
         self.view = view
-
-        if self.view.weak_Annotations:
+        print(self.view.draw_weak_labels)
+        if self.view.draw_weak_labels:
             self.view.window.bind('<ButtonPress-1>', self.calc_circle_coords)
         else:
             self.view.window.bind('<ButtonPress-1>', self.on_press_draw_rect)
@@ -17,6 +17,7 @@ class Controller():
         self.view.window.bind('n', self.model.next_img)
         self.view.window.bind('q', self.view.close_window)
 
+    
 
     def calc_circle_coords(self,event):
         x,y = event.x, event.y
