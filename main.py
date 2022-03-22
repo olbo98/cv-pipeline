@@ -32,9 +32,8 @@ def main():
     view = View(window)
     model = Model(view,path, circle_coords, rect_coords)
     controller = Controller(model,view)
-    model.query_weak_annotations(set_images)
-    #window.mainloop()
-    #circle_coords = model.get_circle_coords()
-    #print(circle_coords)
+    rectangle_coords = model.query_strong_annotations(set_images)
+    #circle_coords = model.query_weak_annotations(set_images)
+    print(rectangle_coords)
 if __name__ == "__main__":
     main()

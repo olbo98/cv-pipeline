@@ -24,6 +24,7 @@ class Model():
             x1 = x + r
             y1 = y + r
             self.view.draw_circle(x0,y0,x1,y1)
+            self.shape_IDs.append(self.view.ID)
             self.add_circle_coords(x,y)
     
 
@@ -107,8 +108,14 @@ class Model():
 
         return labels_and_confidence
 
-    def query_strong_annotations(self):
-        return
+    def query_strong_annotations(self,set_images):
+        self.strong_annotations = True
+        self.view.draw_strong_Annotations()
+        self.set_images = iter(set_images)
+        self.next_img()
+        rectangle_coords = self.get_rect_coords()
+        self.view.window.mainloop()
+        return rectangle_coords
 
     def soft_switch(self, samples, pseudo_labels, conf_thresh):
         pseudo_high = []
@@ -156,16 +163,9 @@ class Model():
       
     def delete_annotations(self,event=None):
         self.view.canvas_image.delete(self.shape_IDs.pop())
-
-    ''''
-    def prepare_imgs(self):
-         while True:
-            try:
-                image = next(self.set_images)
-                self.circle_coords[image] = []
-                self.rect_coords[image] = []
-            except StopIteration:
-                break
-    '''
+        if self.strong_annotations:
+            del self.rect_coords[self.active_image][-1]
+        else:
+            del self.circle_coords[self.active_image][-1]
 
 
