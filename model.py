@@ -1,3 +1,4 @@
+from ast import Return
 import math
 from view import View
 
@@ -12,7 +13,30 @@ class Model():
         self.path = path
         self.prepare_imgs()
         self.set_images = iter(set_images)
+        self.strong_annotations = False
 
+    def handle_buttonpress(self, event):
+        if self.strong_annotations:
+            self.x = event.x
+            self.y = event.y
+        else:
+            x,y = event.x, event.y
+            r = 8
+            x0 = x - r
+            y0 = y - r
+            x1 = x + r
+            y1 = y + r
+            self.view.draw_circle(x0,y0,x1,y1)
+            self.add_circle_coords(x,y)
+    
+
+    def handle_buttonrelease(self, event):
+        if self.strong_annotations:
+            x0,y0 = self.x, self.y
+            x1,y1 = event.x, event.y
+            self.view.draw_rectangle(x0,y0,x1,y1)
+            self.shape_IDs.append(self.view.ID)
+            self.add_rect_coords(x0,y0,x1,y1)
 
     #Sample images from dataset using a Least Confident method.
     #Confidence for an image is calculated as the highest bounding box probability in that image
