@@ -4,6 +4,7 @@ from pool import Pool
 from view import View
 import tensorflow as tf
 import numpy as np
+import os
 
 
 class Module():
@@ -64,7 +65,8 @@ class Module():
     def active_smapling(self,model, set, sample_size):
         highest_scores = []
         for image in set:
-            _, scores, _, _ = model.predict(image)
+            img = self.prepocess_img(image)
+            _, scores, _, _ = model.predict(img)
             highest_scores.append(scores[0][0])
         
         images_and_scores = zip(set, highest_scores)
@@ -117,7 +119,8 @@ class Module():
         labels_and_confidence = []
         for i, (image, annotations) in enumerate(zip(sample, weak_annotations)):
             pseudo_labels = []
-            img = self.prepocess_img(image)
+            full_img_path = os.path.join(self.path, image)
+            img = self.prepocess_img(full_img_path)
             boxes, scores, classes, _ = model.predict(img)
             for annotation in annotations:
                 closest_box = self.find_closest_box(boxes[0], scores[0], classes[0], annotation)
