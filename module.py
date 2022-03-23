@@ -23,9 +23,10 @@ class Module():
         return yolo
     
     def prepocess_img(self, image, size=416):
-        img_raw =  tf.image.decode_image(open(image, 'rb').read(), channels=3)
-        img = tf.expand_dims(img_raw, 0)
-        img = self.transform_images(img, size)
+        with open(image, 'rb') as i:
+            img_raw =  tf.image.decode_image(i.read(), channels=3)
+            img = tf.expand_dims(img_raw, 0)
+            img = self.transform_images(img, size)
         return img
     
 
@@ -65,7 +66,8 @@ class Module():
     def active_smapling(self,model, set, sample_size):
         highest_scores = []
         for image in set:
-            img = self.prepocess_img(image)
+            full_img_path = os.path.join(self.path, image)
+            img = self.prepocess_img(full_img_path)
             _, scores, _, _ = model.predict(img)
             highest_scores.append(scores[0][0])
         

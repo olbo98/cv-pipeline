@@ -2,9 +2,9 @@ from random import sample
 
 
 class Pool():
-    def __init__(self):
-        self._images = []
-        self._labels = []
+    def __init__(self, images=[], labels=[]):
+        self._images = images
+        self._labels = labels
 
     @property
     def len(self):
