@@ -4,8 +4,14 @@ from view import View
 import tensorflow as tf
 import numpy as np
 
-
+#
 class Module():
+    """
+    A class that represents the adaptive super vision module. 
+    The class essentially is the entire algorithm where it samples images,
+    save coordinates, annotates images to then send to the interface
+    as well as pseudolabels the images.
+    """
     def __init__(self, view: View,path, circle_coords, rect_coords):
         self.view = view
         self.circle_coords = circle_coords
@@ -15,11 +21,13 @@ class Module():
         self.path = path
         self.strong_annotations = False
 
+    #Setting up the yolo model for model prediction
     def setup_model(self):
         yolo = YoloV3()
         yolo.load_weights('./checkpoints/yolov3.tf').expect_partial()
         return yolo
     
+    #Opens the image the prepocess it to a functionable size
     def prepocess_img(self, image, size=416):
         img_raw =  tf.image.decode_image(open(image, 'rb').read(), channels=3)
         img = tf.expand_dims(img_raw, 0)
@@ -32,7 +40,9 @@ class Module():
         x_train = x_train / 255
         return x_train
 
-
+    #Handles button press from the interface when annotating an image
+    #The user can draw a circle or a rectangle depending if it is a
+    #strong or weak annotation
     def handle_buttonpress(self, event):
         if self.strong_annotations:
             self.x = event.x
@@ -48,7 +58,7 @@ class Module():
             self.shape_IDs.append(self.view.ID)
             self.add_circle_coords(x,y)
     
-
+    #Button release when annotating with strong labels
     def handle_buttonrelease(self, event):
         if self.strong_annotations:
             x0,y0 = self.x, self.y
@@ -71,6 +81,9 @@ class Module():
         least_confident_samples = [row[0] for row in sorted_images_and_scores[0:sample_size]]
         return least_confident_samples
     
+    #Queries for weak annotations
+    #Drawing a circle by center-clicking on an object
+    #Move on into the next images to annotate
     def query_weak_annotations(self,set_images): 
         self.strong_annotations = False
         self.view.draw_weak_Annotations()
@@ -78,7 +91,6 @@ class Module():
         self.next_img()
         circle_coords = self.get_circle_coords()
         self.view.window.mainloop()
-        print("hej")
         return circle_coords
 
    #Calculates distance from the bounding box's center to the position of the weak annotation
@@ -129,6 +141,9 @@ class Module():
 
         return labels_and_confidence
 
+    #Queries for strong annotation
+    #Strong annotate by drawing a bounding box around an object
+    #Annotate by selecting the top left corner and release at the bottom right corner
     def query_strong_annotations(self,set_images):
         self.strong_annotations = True
         self.view.draw_strong_Annotations()
@@ -159,7 +174,8 @@ class Module():
         #p_s = pseudo_labels()
 
         return model
-    
+
+    #Iterating through each image and showing them on the interface
     def next_img(self,event=None):
         try:
             image = next(self.set_images)
@@ -181,7 +197,7 @@ class Module():
     def add_rect_coords(self,x0,y0,x1,y1):
         self.rect_coords[self.active_image].append([x0,y0,x1,y1])
     
-      
+    #Deleting the annotations from the list and the interface  
     def delete_annotations(self,event=None):
         self.view.canvas_image.delete(self.shape_IDs.pop())
         if self.strong_annotations:

@@ -3,3 +3,5 @@ images/
 
 #yolov3.tf too large to push
 checkpoints/
+
+__pycache__/
