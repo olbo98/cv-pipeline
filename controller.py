@@ -1,9 +1,9 @@
 from tkinter import Y
-from model import Model
+from model import Module
 from view import View
 
 class Controller():
-    def __init__(self, model: Model, view: View):
+    def __init__(self, model: Module, view: View):
         self.model = model
         self.view = view
 

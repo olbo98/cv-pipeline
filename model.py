@@ -1,8 +1,11 @@
-from ast import Return
+from models import YoloV3
 import math
 from view import View
+import tensorflow as tf
+import numpy as np
 
-class Model():
+
+class Module():
     def __init__(self, view: View,path, circle_coords, rect_coords):
         self.view = view
         self.circle_coords = circle_coords
@@ -11,6 +14,24 @@ class Model():
         self.active_image = ''
         self.path = path
         self.strong_annotations = False
+
+    def setup_model(self):
+        yolo = YoloV3()
+        yolo.load_weights('./checkpoints/yolov3.tf').expect_partial()
+        return yolo
+    
+    def prepocess_img(self, image, size=416):
+        img_raw =  tf.image.decode_image(open(image, 'rb').read(), channels=3)
+        img = tf.expand_dims(img_raw, 0)
+        img = self.transform_images(img, size)
+        return img
+    
+
+    def transform_images(self,x_train, size):
+        x_train = tf.image.resize(x_train, (size, size))
+        x_train = x_train / 255
+        return x_train
+
 
     def handle_buttonpress(self, event):
         if self.strong_annotations:

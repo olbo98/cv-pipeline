@@ -1,8 +1,6 @@
-
-from cmath import rect
 import tkinter as tk
 import os
-from model import Model
+from model import Module
 from view import View
 from controller import Controller
 
@@ -27,13 +25,11 @@ def main():
         set_images.append(image)
     circle_coords, rect_coords = prepare_imgs(set_images)
 
-    window = tk.Tk()
     
+    window = tk.Tk()
     view = View(window)
-    model = Model(view,path, circle_coords, rect_coords)
+    model = Module(view, path, circle_coords, rect_coords)
     controller = Controller(model,view)
-    rectangle_coords = model.query_strong_annotations(set_images)
-    #circle_coords = model.query_weak_annotations(set_images)
-    print(rectangle_coords)
+
 if __name__ == "__main__":
     main()
