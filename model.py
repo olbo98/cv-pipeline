@@ -1,5 +1,6 @@
 from ast import Return
 import math
+from pool import Pool
 from view import View
 
 class Model():
@@ -39,13 +40,13 @@ class Model():
     #Sample images from dataset using a Least Confident method.
     #Confidence for an image is calculated as the highest bounding box probability in that image
     #Images with the least confidence are selected
-    def active_smapling(self,model, dataset, sample_size):
+    def active_smapling(self,model, set, sample_size):
         highest_scores = []
-        for image in dataset:
+        for image in set:
             _, scores, _, _ = model.predict(image)
             highest_scores.append(scores[0][0])
         
-        images_and_scores = zip(dataset, highest_scores)
+        images_and_scores = zip(set, highest_scores)
         sorted_images_and_scores = sorted(images_and_scores, key = lambda x: x[1])
         least_confident_samples = [row[0] for row in sorted_images_and_scores[0:sample_size]]
         return least_confident_samples
@@ -124,7 +125,7 @@ class Model():
             confidence = pseudo_label[1]
             index = pseudo_label[2]
             if confidence > conf_thresh:
-                pseudo_high.append(pseudo_label[0])
+                pseudo_high.append((samples[pseudo_label[2]], pseudo_label[0]))
             else:
                 s_low.append(samples[index])
         s_low_strong = self.query_strong_annotations(s_low)
@@ -132,10 +133,25 @@ class Model():
         #TODO: Maybe we should return the updated labeled pool and weak labeled pool here instead?
         #Note: Should we delete the samples from the other pools when they are inserted to the new pools? And should that be done in active_sampling?
 
-    def adaptive_supervision(self, unlabeled_pool, labeled_pool, weak_labeled_pool, model, episode_num, sample_size, soft_switch_thresh):
-        #s = active_smapling()
-        #w_s = query_weak_annotations()
-        #p_s = pseudo_labels()
+    def adaptive_supervision(self, unlabeled_pool, labeled_pool: Pool, weak_labeled_pool: Pool, model, episode_num, sample_size, soft_switch_thresh):
+        #sample from unlabeled pool and weak labeled pool
+        union_set = unlabeled_pool.append(weak_labeled_pool.get_all_samples())
+        s = self.active_smapling(model, union_set, 10)
+        #delete samples from pools
+        for sample in s:
+            if sample in unlabeled_pool:
+                unlabeled_pool.remove(sample)
+            elif weak_labeled_pool.exists(sample):
+                weak_labeled_pool.delete_sample(sample)
+        
+        w_s = self.query_weak_annotations()
+        p_s = self.pseudo_labels()
+        s_low_strong, pseudo_high = self.soft_switch(s, p_s, 1)
+        #update pools with new samples
+        for sample in s_low_strong:
+            labeled_pool.add_sample(sample, s_low_strong[sample])
+        for sample in pseudo_high:
+            weak_labeled_pool.add_sample(sample[0], sample[1])
 
         return model
     

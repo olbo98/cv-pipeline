@@ -18,6 +18,9 @@ class Pool():
             label = self._labels[index]
         return sample, label
 
+    def get_all_samples(self):
+        return self._images
+
     def add_sample(self, image, label):
         self._images.append(image)
         self._labels.append(label)
@@ -26,3 +29,10 @@ class Pool():
         index = self._images.index(image)
         self._images.remove(image)
         del self._labels[index]
+    
+    def exists(self, image):
+        try:
+            index = self._images.index(image)
+            return True
+        except:
+            return False
