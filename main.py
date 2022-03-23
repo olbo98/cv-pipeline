@@ -1,6 +1,6 @@
 import tkinter as tk
 import os
-from model import Module
+from module import Module
 from view import View
 from controller import Controller
 

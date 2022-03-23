@@ -117,7 +117,8 @@ class Module():
         labels_and_confidence = []
         for i, (image, annotations) in enumerate(zip(sample, weak_annotations)):
             pseudo_labels = []
-            boxes, scores, classes, _ = model.predict(image)
+            img = self.prepocess_img(image)
+            boxes, scores, classes, _ = model.predict(img)
             for annotation in annotations:
                 closest_box = self.find_closest_box(boxes[0], scores[0], classes[0], annotation)
                 pseudo_labels.append(closest_box)
