@@ -2,6 +2,7 @@
 images/
 
 #yolov3.tf too large to push
-checkpoints/
+checkpoints/*
 
+#Cache that is not necessary to push
 __pycache__/

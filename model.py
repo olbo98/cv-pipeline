@@ -13,14 +13,24 @@ class Module():
     save coordinates, annotates images to then send to the interface
     as well as pseudolabels the images.
     """
-    def __init__(self, view: View,path, circle_coords, rect_coords):
+    def __init__(self, view: View,path):
         self.view = view
-        self.circle_coords = circle_coords
-        self.rect_coords = rect_coords
+        self.circle_coords = {}
+        self.rect_coords = {}
         self.shape_IDs = []
         self.active_image = ''
         self.path = path
         self.strong_annotations = False
+
+    def prepare_imgs(self,set_images):
+        set_images = iter(set_images)
+        while True:
+            try:
+                image = next(set_images)
+                self.circle_coords[image] = []
+                self.rect_coords[image] = []
+            except StopIteration:
+                break
 
     #Setting up the yolo model for model prediction
     def setup_model(self):
@@ -32,14 +42,14 @@ class Module():
     def prepocess_img(self, image, size=416):
         img_raw =  tf.image.decode_image(open(image, 'rb').read(), channels=3)
         img = tf.expand_dims(img_raw, 0)
-        img = self.transform_images(img, size)
+        img = self.transform_image(img, size)
         return img
     
 
-    def transform_images(self,x_train, size):
-        x_train = tf.image.resize(x_train, (size, size))
-        x_train = x_train / 255
-        return x_train
+    def transform_image(self, image, size=416):
+        img = tf.image.resize(image, (size, size))
+        img = img / 255
+        return img
 
     #Handles button press from the interface when annotating an image
     #The user can draw a circle or a rectangle depending if it is a
@@ -213,7 +223,7 @@ class Module():
     def add_rect_coords(self,x0,y0,x1,y1):
         self.rect_coords[self.active_image].append([x0,y0,x1,y1])
     
-    #Deleting the annotations from the list and the interface  
+    #Deleting the latest annotations from the list and the interface  
     def delete_annotations(self,event=None):
         self.view.canvas_image.delete(self.shape_IDs.pop())
         if self.strong_annotations:
