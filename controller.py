@@ -1,5 +1,5 @@
 from tkinter import Y
-from model import Module
+from module import Module
 from view import View
 
 class Controller():

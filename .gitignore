@@ -3,6 +3,7 @@ images/
 
 #yolov3.tf too large to push
 checkpoints/*
+!checkpoints/readme.txt
 
 #Cache that is not necessary to push
 __pycache__/
