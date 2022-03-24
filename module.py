@@ -41,10 +41,10 @@ class Module():
     
     #Opens the image the prepocess it to a functionable size
     def prepocess_img(self, image, size=416):
-        with open(image, 'rb') as i:
+        with open(os.path.join(self.path, image), 'rb') as i:
             img_raw =  tf.image.decode_image(i.read(), channels=3)
             img = tf.expand_dims(img_raw, 0)
-            img = self.transform_images(img, size)
+            img = self.transform_image(img, size)
         return img
     
 
@@ -86,8 +86,7 @@ class Module():
     def active_smapling(self,model, set, sample_size):
         highest_scores = []
         for image in set:
-            full_img_path = os.path.join(self.path, image)
-            img = self.prepocess_img(full_img_path)
+            img = self.prepocess_img(image)
             _, scores, _, _ = model.predict(img)
             highest_scores.append(scores[0][0])
         
@@ -143,8 +142,7 @@ class Module():
         labels_and_confidence = []
         for i, (image, annotations) in enumerate(zip(sample, weak_annotations)):
             pseudo_labels = []
-            full_img_path = os.path.join(self.path, image)
-            img = self.prepocess_img(full_img_path)
+            img = self.prepocess_img(image)
             boxes, scores, classes, _ = model.predict(img)
             for annotation in annotations:
                 closest_box = self.find_closest_box(boxes[0], scores[0], classes[0], annotation)
