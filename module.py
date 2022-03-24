@@ -235,4 +235,64 @@ class Module():
         else:
             del self.circle_coords[self.active_image][-1]
 
+    def train_model(self, model, labeled_pool: Pool, weak_labeled_pool: Pool, epochs):
+        #setup datasets
+        x_train = []
+        y_train = []
+        for i in range(0, labeled_pool.len):
+            image, label = labeled_pool.get_sample(i)
+            img = self.prepocess_img(image)
+            x_train.append(image)
+            y_train.append(label)
+        for i in range(0, weak_labeled_pool.len):
+            image, label = weak_labeled_pool.get_sample(i)
+            img = self.prepocess_img(image)
+            x_train.append(img)
+            y_train.append(label)
+
+        y_train = tf.convert_to_tensor(labels, tf.float32)
+        y_train = tf.expand_dims(y_train, axis=0)
+        train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+        
+        for epoch in range(1, epochs + 1):
+            for batch, (images, labels) in enumerate(train_dataset):
+                with tf.GradientTape() as tape:
+                    outputs = model(images, training=True)
+                    regularization_loss = tf.reduce_sum(model.losses)
+                    pred_loss = []
+                    for output, label, loss_fn in zip(outputs, labels, loss):
+                        pred_loss.append(loss_fn(label, output))
+                    total_loss = tf.reduce_sum(pred_loss) + regularization_loss
+
+                grads = tape.gradient(total_loss, model.trainable_variables)
+                optimizer.apply_gradients(
+                    zip(grads, model.trainable_variables))
+
+                logging.info("{}_train_{}, {}, {}".format(
+                    epoch, batch, total_loss.numpy(),
+                    list(map(lambda x: np.sum(x.numpy()), pred_loss))))
+                avg_loss.update_state(total_loss)
+
+            for batch, (images, labels) in enumerate(val_dataset):
+                outputs = model(images)
+                regularization_loss = tf.reduce_sum(model.losses)
+                pred_loss = []
+                for output, label, loss_fn in zip(outputs, labels, loss):
+                    pred_loss.append(loss_fn(label, output))
+                total_loss = tf.reduce_sum(pred_loss) + regularization_loss
+
+                logging.info("{}_val_{}, {}, {}".format(
+                    epoch, batch, total_loss.numpy(),
+                    list(map(lambda x: np.sum(x.numpy()), pred_loss))))
+                avg_val_loss.update_state(total_loss)
+
+            logging.info("{}, train: {}, val: {}".format(
+                epoch,
+                avg_loss.result().numpy(),
+                avg_val_loss.result().numpy()))
+
+            avg_loss.reset_states()
+            avg_val_loss.reset_states()
+            model.save_weights(
+                'checkpoints/yolov3_train_{}.tf'.format(epoch))
 
