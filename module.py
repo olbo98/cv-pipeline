@@ -253,6 +253,13 @@ class Module():
         y_train = tf.convert_to_tensor(labels, tf.float32)
         y_train = tf.expand_dims(y_train, axis=0)
         train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+
+        anchors = yolo_anchors
+        anchor_masks = yolo_anchor_masks
+
+        optimizer = tf.keras.optimizers.Adam(lr=FLAGS.learning_rate)
+        loss = [YoloLoss(anchors[mask], classes=FLAGS.num_classes)
+                for mask in anchor_masks]
         
         for epoch in range(1, epochs + 1):
             for batch, (images, labels) in enumerate(train_dataset):
