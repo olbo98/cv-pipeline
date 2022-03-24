@@ -6,6 +6,10 @@ from tkinter import ANCHOR, Button, Label
 import os
 
 class View():
+    """
+    A class that represents the programs interface. It shows the interface depending if the user annotates a strong or
+    a weak annotation. The class also shows the image along with its annotations.
+    """
     def __init__(self, window, app_width = 1920, app_height = 1080):
         self.window = window
         self.app_width = app_width

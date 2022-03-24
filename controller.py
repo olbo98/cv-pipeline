@@ -3,6 +3,9 @@ from module import Module
 from view import View
 
 class Controller():
+    """
+    A class that handles event when a user clicks on the interface
+    """
     def __init__(self, model: Module, view: View):
         self.model = model
         self.view = view
