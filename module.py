@@ -260,54 +260,55 @@ class Module():
         val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
         return train_dataset, val_dataset
     
-    def _train_loop(self, model, epochs, train_dataset, val_dataset, optimizer, num_classes):
-        anchors = yolo_anchors
-        anchor_masks = yolo_anchor_masks
-        loss = [YoloLoss(anchors[mask], classes=num_classes)for mask in anchor_masks]
-        avg_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
-        avg_val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
+    def _train_loop(self, model, epochs, train_dataset, val_dataset, optimizer, num_classes, debug=True):
+        if debug:
+            anchors = yolo_anchors
+            anchor_masks = yolo_anchor_masks
+            loss = [YoloLoss(anchors[mask], classes=num_classes)for mask in anchor_masks]
+            avg_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
+            avg_val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
 
-        for epoch in range(1, epochs + 1):
-            for batch, (images, labels) in enumerate(train_dataset):
-                with tf.GradientTape() as tape:
-                    outputs = model(images, training=True)
+            for epoch in range(1, epochs + 1):
+                for batch, (images, labels) in enumerate(train_dataset):
+                    with tf.GradientTape() as tape:
+                        outputs = model(images, training=True)
+                        regularization_loss = tf.reduce_sum(model.losses)
+                        pred_loss = []
+                        for output, label, loss_fn in zip(outputs, labels, loss):
+                            pred_loss.append(loss_fn(label, output))
+                        total_loss = tf.reduce_sum(pred_loss) + regularization_loss
+
+                    grads = tape.gradient(total_loss, model.trainable_variables)
+                    optimizer.apply_gradients(
+                        zip(grads, model.trainable_variables))
+
+                    logging.info("{}_train_{}, {}, {}".format(
+                        epoch, batch, total_loss.numpy(),
+                        list(map(lambda x: np.sum(x.numpy()), pred_loss))))
+                    avg_loss.update_state(total_loss)
+
+                for batch, (images, labels) in enumerate(val_dataset):
+                    outputs = model(images)
                     regularization_loss = tf.reduce_sum(model.losses)
                     pred_loss = []
                     for output, label, loss_fn in zip(outputs, labels, loss):
                         pred_loss.append(loss_fn(label, output))
                     total_loss = tf.reduce_sum(pred_loss) + regularization_loss
 
-                grads = tape.gradient(total_loss, model.trainable_variables)
-                optimizer.apply_gradients(
-                    zip(grads, model.trainable_variables))
+                    logging.info("{}_val_{}, {}, {}".format(
+                        epoch, batch, total_loss.numpy(),
+                        list(map(lambda x: np.sum(x.numpy()), pred_loss))))
+                    avg_val_loss.update_state(total_loss)
 
-                logging.info("{}_train_{}, {}, {}".format(
-                    epoch, batch, total_loss.numpy(),
-                    list(map(lambda x: np.sum(x.numpy()), pred_loss))))
-                avg_loss.update_state(total_loss)
+                logging.info("{}, train: {}, val: {}".format(
+                    epoch,
+                    avg_loss.result().numpy(),
+                    avg_val_loss.result().numpy()))
 
-            for batch, (images, labels) in enumerate(val_dataset):
-                outputs = model(images)
-                regularization_loss = tf.reduce_sum(model.losses)
-                pred_loss = []
-                for output, label, loss_fn in zip(outputs, labels, loss):
-                    pred_loss.append(loss_fn(label, output))
-                total_loss = tf.reduce_sum(pred_loss) + regularization_loss
-
-                logging.info("{}_val_{}, {}, {}".format(
-                    epoch, batch, total_loss.numpy(),
-                    list(map(lambda x: np.sum(x.numpy()), pred_loss))))
-                avg_val_loss.update_state(total_loss)
-
-            logging.info("{}, train: {}, val: {}".format(
-                epoch,
-                avg_loss.result().numpy(),
-                avg_val_loss.result().numpy()))
-
-            avg_loss.reset_states()
-            avg_val_loss.reset_states()
-            model.save_weights(
-                'checkpoints/yolov3_train_{}.tf'.format(epoch))
+                avg_loss.reset_states()
+                avg_val_loss.reset_states()
+                model.save_weights(
+                    'checkpoints/yolov3_train_{}.tf'.format(epoch))
 
     def train_model(self, model, labeled_pool: Pool, weak_labeled_pool: Pool, epochs, learning_rate, num_classes):
         #setup datasets
