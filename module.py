@@ -1,10 +1,15 @@
-from models import YoloV3
+from models import (
+    YoloV3, YoloLoss,
+    yolo_anchors, yolo_anchor_masks,
+)
+from sklearn.model_selection import train_test_split
 import math
 from pool import Pool
 from view import View
 import tensorflow as tf
 import numpy as np
 import os
+from absl import logging
 
 #
 class Module():
@@ -235,8 +240,7 @@ class Module():
         else:
             del self.circle_coords[self.active_image][-1]
 
-    def train_model(self, model, labeled_pool: Pool, weak_labeled_pool: Pool, epochs):
-        #setup datasets
+    def _setup_datasets(self,labeled_pool: Pool, weak_labeled_pool: Pool):
         x_train = []
         y_train = []
         for i in range(0, labeled_pool.len):
@@ -249,18 +253,20 @@ class Module():
             img = self.prepocess_img(image)
             x_train.append(img)
             y_train.append(label)
-
-        y_train = tf.convert_to_tensor(labels, tf.float32)
-        y_train = tf.expand_dims(y_train, axis=0)
+        x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.33)
+        
+        y_train = tf.convert_to_tensor(y_train, tf.float32)
         train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-
+        val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
+        return train_dataset, val_dataset
+    
+    def _train_loop(self, model, epochs, train_dataset, val_dataset, optimizer, num_classes):
         anchors = yolo_anchors
         anchor_masks = yolo_anchor_masks
+        loss = [YoloLoss(anchors[mask], classes=num_classes)for mask in anchor_masks]
+        avg_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
+        avg_val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
 
-        optimizer = tf.keras.optimizers.Adam(lr=FLAGS.learning_rate)
-        loss = [YoloLoss(anchors[mask], classes=FLAGS.num_classes)
-                for mask in anchor_masks]
-        
         for epoch in range(1, epochs + 1):
             for batch, (images, labels) in enumerate(train_dataset):
                 with tf.GradientTape() as tape:
@@ -302,4 +308,14 @@ class Module():
             avg_val_loss.reset_states()
             model.save_weights(
                 'checkpoints/yolov3_train_{}.tf'.format(epoch))
+
+    def train_model(self, model, labeled_pool: Pool, weak_labeled_pool: Pool, epochs, learning_rate, num_classes):
+        #setup datasets
+        train_dataset, val_dataset = self._setup_datasets(labeled_pool, weak_labeled_pool)
+
+        #Training loop
+        optimizer = tf.keras.optimizers.Adam(lr=learning_rate)
+        self._train_loop(model, epochs, train_dataset, val_dataset, optimizer, num_classes)
+        
+        
 
