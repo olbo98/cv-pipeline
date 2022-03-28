@@ -131,7 +131,7 @@ class Module():
         for box, score, c in zip(bounding_boxes, scores, classes):
             dist = self.dist_from_point(box, annotation)
             if dist < closest_distance:
-                closest_box = (box, score, c)
+                closest_box = (box.append(c), score)
                 closest_distance = dist
         return closest_box
 
@@ -244,15 +244,15 @@ class Module():
         x_train = []
         y_train = []
         for i in range(0, labeled_pool.len):
-            image, label = labeled_pool.get_sample(i)
+            image, labels = labeled_pool.get_sample(i)
             img = self.prepocess_img(image)
             x_train.append(image)
-            y_train.append(label)
+            y_train.append(labels)
         for i in range(0, weak_labeled_pool.len):
-            image, label = weak_labeled_pool.get_sample(i)
+            image, labels = weak_labeled_pool.get_sample(i)
             img = self.prepocess_img(image)
             x_train.append(img)
-            y_train.append(label)
+            y_train.append(labels)
         x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.33)
         
         y_train = tf.convert_to_tensor(y_train, tf.float32)
