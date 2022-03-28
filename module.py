@@ -1,3 +1,4 @@
+from cgitb import strong
 from models import YoloV3
 import math
 from pool import Pool
@@ -14,14 +15,19 @@ class Module():
     save coordinates, annotates images to then send to the interface
     as well as pseudolabels the images.
     """
-    def __init__(self, view: View,path):
+    def __init__(self, view: View, path, set_images):
+        self.set_images = set_images
         self.view = view
         self.circle_coords = {}
         self.rect_coords = {}
         self.shape_IDs = []
         self.active_image = ''
-        self.path = path
+        self.path= path
         self.strong_annotations = False
+        self.unlabeled_pool = []
+        self.labeled_pool = Pool()
+        self.weak_labeled_pool = Pool()
+        self.model = self.setup_model()
 
     def prepare_imgs(self,set_images):
         set_images = iter(set_images)
@@ -29,7 +35,6 @@ class Module():
             try:
                 image = next(set_images)
                 self.circle_coords[image] = []
-                self.rect_coords[image] = []
             except StopIteration:
                 break
 
@@ -41,10 +46,10 @@ class Module():
     
     #Opens the image the prepocess it to a functionable size
     def prepocess_img(self, image, size=416):
-        with open(os.path.join(self.path, image), 'rb') as i:
+        with open(os.path.join(self.path,image), 'rb') as i:
             img_raw =  tf.image.decode_image(i.read(), channels=3)
             img = tf.expand_dims(img_raw, 0)
-            img = self.transform_image(img, size)
+            img = self.transform_images(img, size)
         return img
     
 
@@ -86,7 +91,8 @@ class Module():
     def active_smapling(self,model, set, sample_size):
         highest_scores = []
         for image in set:
-            img = self.prepocess_img(image)
+            full_img_path = os.path.join(self.path, image)
+            img = self.prepocess_img(full_img_path)
             _, scores, _, _ = model.predict(img)
             highest_scores.append(scores[0][0])
         
@@ -98,14 +104,11 @@ class Module():
     #Queries for weak annotations
     #Drawing a circle by center-clicking on an object
     #Move on into the next images to annotate
-    def query_weak_annotations(self,set_images): 
+    def query_weak_annotations(self): 
         self.strong_annotations = False
         self.view.draw_weak_Annotations()
-        self.set_images = iter(set_images)
+        self.set_images = iter(self.set_images)
         self.next_img()
-        circle_coords = self.get_circle_coords()
-        self.view.window.mainloop()
-        return circle_coords
 
    #Calculates distance from the bounding box's center to the position of the weak annotation
     def dist_from_point(self, box, weak_annotation):
@@ -130,7 +133,7 @@ class Module():
                 closest_distance = dist
         return closest_box
 
-    def pseudo_labels(self, model, sample, weak_annotations):
+    def pseudo_labels(self, sample, weak_annotations):
         #predict bounding boxes
         #use weak labels to choose best possible bounding box
         #   - for every click location, we pseudo label that object with a
@@ -143,7 +146,7 @@ class Module():
         for i, (image, annotations) in enumerate(zip(sample, weak_annotations)):
             pseudo_labels = []
             img = self.prepocess_img(image)
-            boxes, scores, classes, _ = model.predict(img)
+            boxes, scores, classes, _ = self.model.predict(img)
             for annotation in annotations:
                 closest_box = self.find_closest_box(boxes[0], scores[0], classes[0], annotation)
                 pseudo_labels.append(closest_box)
@@ -159,14 +162,11 @@ class Module():
     #Queries for strong annotation
     #Strong annotate by drawing a bounding box around an object
     #Annotate by selecting the top left corner and release at the bottom right corner
-    def query_strong_annotations(self,set_images):
+    def query_strong_annotations(self):
         self.strong_annotations = True
         self.view.draw_strong_Annotations()
-        self.set_images = iter(set_images)
+        self.set_images = iter(self.set_images)
         self.next_img()
-        rectangle_coords = self.get_rect_coords()
-        self.view.window.mainloop()
-        return rectangle_coords
 
     def soft_switch(self, samples, pseudo_labels, conf_thresh):
         pseudo_high = []
@@ -178,8 +178,7 @@ class Module():
                 pseudo_high.append((samples[pseudo_label[2]], pseudo_label[0]))
             else:
                 s_low.append(samples[index])
-        s_low_strong = self.query_strong_annotations(s_low)
-        return s_low_strong, pseudo_high
+        return s_low, pseudo_high
         #TODO: Maybe we should return the updated labeled pool and weak labeled pool here instead?
         #Note: Should we delete the samples from the other pools when they are inserted to the new pools? And should that be done in active_sampling?
 
@@ -199,19 +198,62 @@ class Module():
         s_low_strong, pseudo_high = self.soft_switch(s, p_s, 1)
         #update pools with new samples
         for sample in s_low_strong:
-            labeled_pool.add_sample(sample, s_low_strong[sample])
+            self.labeled_pool.add_sample(sample, s_low_strong[sample])
         for sample in pseudo_high:
             weak_labeled_pool.add_sample(sample[0], sample[1])
 
         return model
 
+    def first_state(self):
+        self.model_train()
+        #sample from unlabeled pool and weak labeled pool
+        union_set = self.unlabeled_pool.append(self.weak_labeled_pool.get_all_samples())
+        self.samples = self.active_smapling(self.model, union_set, 10)
+        #delete samples from pools
+        for sample in self.samples:
+            if sample in self.unlabeled_pool:
+                self.unlabeled_pool.remove(sample)
+            elif self.weak_labeled_pool.exists(sample):
+                self.weak_labeled_pool.delete_sample(sample)
+        self.second_state(self.samples)
+
+    def second_state(self,samples):
+        self.prepare_imgs(samples)
+        self.set_images = samples
+        self.query_weak_annotations()
+
+    def third_state(self):
+        circle_coords = self.get_circle_coords()
+        p_s = self.pseudo_labels(self.samples, circle_coords)
+        s_low, pseudo_high = self.soft_switch(self.samples, p_s)
+        for sample in pseudo_high:
+            self.weak_labeled_pool.add_sample(sample[0], sample[1])
+        self.fourth_state(s_low)
+    
+    def fourth_state(self, s_low):
+        self.set_images = s_low
+        self.query_strong_annotations()
+        
+
+    def fifth_state(self):
+        s_low_strong = self.get_rect_coords()
+        for sample in s_low_strong:
+            self.labeled_pool.add_sample(sample, s_low_strong[sample])
+        self.first_state()
+        
+
+    def model_train(self):
+        return
     #Iterating through each image and showing them on the interface
     def next_img(self,event=None):
         try:
             image = next(self.set_images)
             self.active_image = image
         except StopIteration:
-            return
+            if self.strong_annotations == False:
+                self.third_state
+            elif self.strong_annotations == True:
+                self.fifth_state
 
         self.view.show_img(self.active_image,self.path)
 
