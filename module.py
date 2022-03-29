@@ -10,6 +10,7 @@ import tensorflow as tf
 import numpy as np
 import os
 from absl import logging
+import utils as utils
 
 #
 class Module():
@@ -48,9 +49,9 @@ class Module():
     def prepocess_img(self, image, size=416):
         with open(os.path.join(self.path, image), 'rb') as i:
             img_raw =  tf.image.decode_image(i.read(), channels=3)
-            img = tf.expand_dims(img_raw, 0)
-            img = self.transform_image(img, size)
-        return img
+            #img = tf.expand_dims(img_raw, 0)
+            #img = self.transform_image(img, size)
+            return img_raw
     
 
     def transform_image(self, image, size=416):
@@ -243,22 +244,35 @@ class Module():
     def _setup_datasets(self,labeled_pool: Pool, weak_labeled_pool: Pool):
         x_train = []
         y_train = []
-        for i in range(0, labeled_pool.len):
+        for i in range(0, labeled_pool.get_len()):
             image, labels = labeled_pool.get_sample(i)
             img = self.prepocess_img(image)
-            x_train.append(image)
+            x_train.append(img)
             y_train.append(labels)
-        for i in range(0, weak_labeled_pool.len):
+        for i in range(0, weak_labeled_pool.get_len()):
             image, labels = weak_labeled_pool.get_sample(i)
             img = self.prepocess_img(image)
             x_train.append(img)
             y_train.append(labels)
-        x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.33)
+        y_train[0] += [[0,0,0,0,0]] * 5
+        #x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.33)
         
         y_train = tf.convert_to_tensor(y_train, tf.float32)
+        #y_val = tf.convert_to_tensor(y_val, tf.float32)
         train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-        val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
-        return train_dataset, val_dataset
+        #val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
+
+        batch_size = 8
+        train_dataset = train_dataset.shuffle(buffer_size=512)
+        train_dataset = train_dataset.batch(batch_size)
+        train_dataset = train_dataset.map(lambda x, y: (self.transform_image(x,416), utils.transform_targets(y, yolo_anchors, yolo_anchor_masks, 416)))
+        train_dataset = train_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+
+        #val_dataset = val_dataset.batch(batch_size)
+        #val_dataset = val_dataset.map(lambda x, y: (x, utils.transform_targets(y, yolo_anchors, yolo_anchor_masks, 416)))
+
+
+        return train_dataset#, val_dataset
     
     def _train_loop(self, model, epochs, train_dataset, val_dataset, optimizer, num_classes, debug=True):
         if debug:
@@ -312,11 +326,40 @@ class Module():
 
     def train_model(self, model, labeled_pool: Pool, weak_labeled_pool: Pool, epochs, learning_rate, num_classes):
         #setup datasets
-        train_dataset, val_dataset = self._setup_datasets(labeled_pool, weak_labeled_pool)
+        #train_dataset, val_dataset = self._setup_datasets(labeled_pool, weak_labeled_pool)
+        train_dataset = utils.load_fake_dataset()
+        batch_size = 8
+        train_dataset = train_dataset.shuffle(buffer_size=512)
+        train_dataset = train_dataset.batch(batch_size)
+        train_dataset = train_dataset.map(lambda x, y: (self.transform_image(x,416), utils.transform_targets(y, yolo_anchors, yolo_anchor_masks, 416)))
+        train_dataset = train_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+
+        val_dataset = utils.load_fake_dataset()
+        val_dataset = val_dataset.batch(batch_size)
+        val_dataset = val_dataset.map(lambda x, y: (utils.transform_images(x, 416),utils.transform_targets(y, yolo_anchors, yolo_anchor_masks, 416)))
 
         #Training loop
         optimizer = tf.keras.optimizers.Adam(lr=learning_rate)
         self._train_loop(model, epochs, train_dataset, val_dataset, optimizer, num_classes)
         
-        
-
+    def test_train(self):
+        weak_labeled_pool = Pool([], [])
+        labeled_pool = Pool([], [])
+        img_path = "D:/Exjobb/cv-pipeline/20IMGS"
+        label_path = "D:/Exjobb/cv-pipeline/labels_my-project-name_2022-03-28-01-56-59"
+        file_names = os.listdir(img_path)
+        for file in file_names:
+            image_labels = []
+            with open(os.path.join(label_path, file[:-4]+".txt"), "r") as f:
+                for line in f:
+                    line = line[:-1]
+                    line = line.split(" ")
+                    c = line.pop(0)
+                    line.append(c)
+                    for i in range(0, len(line)):
+                        line[i] = float(line[i])
+                    image_labels.append(line)
+            labeled_pool.add_sample(file, image_labels)
+            break
+        model = self.setup_model()
+        self.train_model(model, labeled_pool, weak_labeled_pool, 1, 0.0001, 80)

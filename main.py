@@ -9,7 +9,7 @@ from PIL import Image
 def main():
     set_images = []
     
-    path = "D:/Voi/cv-pipeline/cv-pipline/images"
+    path = "D:/Exjobb/cv-pipeline/20IMGS"
     for image in os.listdir(path):
         set_images.append(image)
     
@@ -18,7 +18,8 @@ def main():
     window = tk.Tk()
     view = View(window)
     module = Module(view, path)
-    module.prepare_imgs(set_images)
+    module.test_train()
+    #module.prepare_imgs(set_images)
     controller = Controller(module,view)
 
 if __name__ == "__main__":

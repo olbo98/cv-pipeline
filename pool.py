@@ -2,18 +2,17 @@ from random import sample
 
 
 class Pool():
-    def __init__(self, images=[], labels=[]):
+    def __init__(self, images, labels):
         self._images = images
         self._labels = labels
 
-    @property
-    def len(self):
+    def get_len(self):
         return len(self._images)
 
     def get_sample(self, index):
         sample = ''
         label = []
-        if self.len > 0:
+        if self.get_len() > 0:
             sample = self._images[index]
             label = self._labels[index]
         return sample, label

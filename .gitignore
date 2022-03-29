@@ -1,5 +1,7 @@
 #ignore test images
 images/
+20IMGS/
+labels_my-project-name_2022-03-28-01-56-59/
 
 #yolov3.tf too large to push
 checkpoints/*
