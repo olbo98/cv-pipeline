@@ -54,7 +54,7 @@ class Module():
         model = YoloV3(416, training=True, classes=80)
         anchors = yolo_anchors
         anchor_masks = yolo_anchor_masks
-        optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=1e-5)
         loss = [YoloLoss(anchors[mask], classes=80)
             for mask in anchor_masks]
 
@@ -353,7 +353,7 @@ class Module():
             ]
 
             start_time = time.time()
-            history = model.fit(train_dataset, epochs=10,callbacks=callbacks, validation_data=val_dataset)
+            history = model.fit(train_dataset, epochs=epochs,callbacks=callbacks, validation_data=val_dataset)
             end_time = time.time() - start_time
             print(f'Total Training Time: {end_time}')
 
@@ -379,10 +379,16 @@ class Module():
                     line.append(c)
                     for i in range(0, len(line)):
                         line[i] = float(line[i])
+                    x1 = line[0] - (line[2]/2) #x1 = x - w/2
+                    y1 = line[1] - (line[3]/2) #y1 = y - h/2
+                    x2 = line[0] + (line[2]/2) #x2 = x + w/2
+                    y2 = line[1] + (line[3]/2) #y2 = y + h/2
+                    line[0] = x1
+                    line[1] = y1
+                    line[2] = x2
+                    line[3] = y2
                     image_labels.append(line)
             labeled_pool.add_sample(file, image_labels)
-        
-        for i in range(0, labeled_pool.get_len()):
-            image, label = labeled_pool.get_sample(i)
+            
         model, optimizer, loss, anchors, anchor_masks = self.setup_model()
-        self.train_model(model, labeled_pool, weak_labeled_pool, 10, optimizer, loss, anchors, anchor_masks, batch_size = 4)
+        self.train_model(model, labeled_pool, weak_labeled_pool, 10, optimizer, loss, anchors, anchor_masks, batch_size = 13)
