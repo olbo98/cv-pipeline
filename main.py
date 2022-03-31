@@ -9,7 +9,7 @@ from PIL import Image
 def main():
     set_images = []
     
-    path = "D:/Exjobb/cv-pipeline/20IMGS"
+    path = "D:/Voi/test_loop_imgs/20imgs"
     for image in os.listdir(path):
         set_images.append(image)
     

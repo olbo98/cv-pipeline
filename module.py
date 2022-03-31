@@ -11,7 +11,15 @@ import numpy as np
 import os
 from absl import logging
 import utils as utils
-
+#import dataset as dataset
+from tensorflow.keras.callbacks import (
+    ReduceLROnPlateau,
+    EarlyStopping,
+    ModelCheckpoint,
+    TensorBoard
+)
+import time
+import numpy as np
 #
 class Module():
     """
@@ -41,17 +49,27 @@ class Module():
 
     #Setting up the yolo model for model prediction
     def setup_model(self):
-        yolo = YoloV3()
-        yolo.load_weights('./checkpoints/yolov3.tf').expect_partial()
-        return yolo
+        #yolo = YoloV3()
+        #yolo.load_weights('./checkpoints/yolov3.tf').expect_partial()
+        model = YoloV3(416, training=True, classes=80)
+        anchors = yolo_anchors
+        anchor_masks = yolo_anchor_masks
+        optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
+        loss = [YoloLoss(anchors[mask], classes=80)
+            for mask in anchor_masks]
+
+        model.compile(optimizer=optimizer, loss=loss)
+
+        return model, optimizer, loss, anchors, anchor_masks
     
     #Opens the image the prepocess it to a functionable size
     def prepocess_img(self, image, size=416):
         with open(os.path.join(self.path, image), 'rb') as i:
             img_raw =  tf.image.decode_image(i.read(), channels=3)
             #img = tf.expand_dims(img_raw, 0)
-            #img = self.transform_image(img, size)
-            return img_raw
+            #img = self.transform_image(img_raw, size)
+            img = tf.image.resize(img_raw, (size,size))
+            return img
     
 
     def transform_image(self, image, size=416):
@@ -241,7 +259,7 @@ class Module():
         else:
             del self.circle_coords[self.active_image][-1]
 
-    def _setup_datasets(self,labeled_pool: Pool, weak_labeled_pool: Pool):
+    def _setup_datasets(self,labeled_pool: Pool, weak_labeled_pool: Pool, anchors, anchor_masks, batch_size):
         x_train = []
         y_train = []
         for i in range(0, labeled_pool.get_len()):
@@ -254,38 +272,38 @@ class Module():
             img = self.prepocess_img(image)
             x_train.append(img)
             y_train.append(labels)
-        y_train[0] += [[0,0,0,0,0]] * 5
-        #x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.33)
+        x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.33)
         
-        y_train = tf.convert_to_tensor(y_train, tf.float32)
-        #y_val = tf.convert_to_tensor(y_val, tf.float32)
-        train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-        #val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
+        y_train = tf.ragged.constant(y_train)
+        y_val = tf.ragged.constant(y_val)
+        y_train = y_train.to_tensor()
+        y_val = y_val.to_tensor()
+        
 
-        batch_size = 8
+        train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+        val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
+        
         train_dataset = train_dataset.shuffle(buffer_size=512)
         train_dataset = train_dataset.batch(batch_size)
-        train_dataset = train_dataset.map(lambda x, y: (self.transform_image(x,416), utils.transform_targets(y, yolo_anchors, yolo_anchor_masks, 416)))
+      
+        train_dataset = train_dataset.map(lambda x, y: (self.transform_image(x,416), utils.transform_targets(y, anchors, anchor_masks, 416)))
         train_dataset = train_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+      
+        
+        val_dataset = val_dataset.batch(batch_size)
+        val_dataset = val_dataset.map(lambda x, y: (self.transform_image(x, 416), utils.transform_targets(y, anchors, anchor_masks, 416)))
 
-        #val_dataset = val_dataset.batch(batch_size)
-        #val_dataset = val_dataset.map(lambda x, y: (x, utils.transform_targets(y, yolo_anchors, yolo_anchor_masks, 416)))
-
-
-        return train_dataset#, val_dataset
+        return train_dataset, val_dataset
     
-    def _train_loop(self, model, epochs, train_dataset, val_dataset, optimizer, num_classes, debug=True):
+    def _train_loop(self, model, epochs, train_dataset, val_dataset, optimizer, loss, debug=False):
         if debug:
-            anchors = yolo_anchors
-            anchor_masks = yolo_anchor_masks
-            loss = [YoloLoss(anchors[mask], classes=num_classes)for mask in anchor_masks]
             avg_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
             avg_val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
 
             for epoch in range(1, epochs + 1):
                 for batch, (images, labels) in enumerate(train_dataset):
                     with tf.GradientTape() as tape:
-                        outputs = model(images, training=True)
+                        outputs = model(images)
                         regularization_loss = tf.reduce_sum(model.losses)
                         pred_loss = []
                         for output, label, loss_fn in zip(outputs, labels, loss):
@@ -295,7 +313,8 @@ class Module():
                     grads = tape.gradient(total_loss, model.trainable_variables)
                     optimizer.apply_gradients(
                         zip(grads, model.trainable_variables))
-
+                    
+                    
                     logging.info("{}_train_{}, {}, {}".format(
                         epoch, batch, total_loss.numpy(),
                         list(map(lambda x: np.sum(x.numpy()), pred_loss))))
@@ -323,30 +342,32 @@ class Module():
                 avg_val_loss.reset_states()
                 model.save_weights(
                     'checkpoints/yolov3_train_{}.tf'.format(epoch))
+        else:
 
-    def train_model(self, model, labeled_pool: Pool, weak_labeled_pool: Pool, epochs, learning_rate, num_classes):
+            callbacks = [
+                ReduceLROnPlateau(verbose=1),
+                EarlyStopping(patience=3, verbose=1),
+                ModelCheckpoint('checkpoints/yolov3_train_{epoch}.tf',
+                                verbose=1, save_weights_only=True),
+                TensorBoard(log_dir='logs')
+            ]
+
+            start_time = time.time()
+            history = model.fit(train_dataset, epochs=10,callbacks=callbacks, validation_data=val_dataset)
+            end_time = time.time() - start_time
+            print(f'Total Training Time: {end_time}')
+
+    def train_model(self, model, labeled_pool: Pool, weak_labeled_pool: Pool, epochs, optimizer, loss, anchors, anchor_masks, batch_size):# 
         #setup datasets
-        #train_dataset, val_dataset = self._setup_datasets(labeled_pool, weak_labeled_pool)
-        train_dataset = utils.load_fake_dataset()
-        batch_size = 8
-        train_dataset = train_dataset.shuffle(buffer_size=512)
-        train_dataset = train_dataset.batch(batch_size)
-        train_dataset = train_dataset.map(lambda x, y: (self.transform_image(x,416), utils.transform_targets(y, yolo_anchors, yolo_anchor_masks, 416)))
-        train_dataset = train_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
-
-        val_dataset = utils.load_fake_dataset()
-        val_dataset = val_dataset.batch(batch_size)
-        val_dataset = val_dataset.map(lambda x, y: (utils.transform_images(x, 416),utils.transform_targets(y, yolo_anchors, yolo_anchor_masks, 416)))
-
-        #Training loop
-        optimizer = tf.keras.optimizers.Adam(lr=learning_rate)
-        self._train_loop(model, epochs, train_dataset, val_dataset, optimizer, num_classes)
+        train_dataset, val_dataset = self._setup_datasets(labeled_pool, weak_labeled_pool, anchors, anchor_masks, batch_size)
+        self._train_loop(model, epochs, train_dataset, val_dataset, optimizer, loss)
         
     def test_train(self):
+        
         weak_labeled_pool = Pool([], [])
         labeled_pool = Pool([], [])
-        img_path = "D:/Exjobb/cv-pipeline/20IMGS"
-        label_path = "D:/Exjobb/cv-pipeline/labels_my-project-name_2022-03-28-01-56-59"
+        img_path = "D:/Voi/test_loop_imgs/20imgs"
+        label_path = "D:/Voi/test_loop_imgs/labels20imgs"
         file_names = os.listdir(img_path)
         for file in file_names:
             image_labels = []
@@ -360,6 +381,8 @@ class Module():
                         line[i] = float(line[i])
                     image_labels.append(line)
             labeled_pool.add_sample(file, image_labels)
-            break
-        model = self.setup_model()
-        self.train_model(model, labeled_pool, weak_labeled_pool, 1, 0.0001, 80)
+        
+        for i in range(0, labeled_pool.get_len()):
+            image, label = labeled_pool.get_sample(i)
+        model, optimizer, loss, anchors, anchor_masks = self.setup_model()
+        self.train_model(model, labeled_pool, weak_labeled_pool, 10, optimizer, loss, anchors, anchor_masks, batch_size = 4)

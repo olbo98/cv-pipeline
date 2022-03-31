@@ -168,6 +168,8 @@ def transform_targets_for_output(y_true, grid_size, anchor_idxs):
                 updates = updates.write(
                     idx, [box[0], box[1], box[2], box[3], 1, y_true[i][j][4]])
                 idx += 1
+    return tf.tensor_scatter_nd_update(
+        y_true_out, indexes.stack(), updates.stack())
 
 def transform_targets(y_train, anchors, anchor_masks, size):
     y_outs = []
@@ -197,7 +199,7 @@ def transform_targets(y_train, anchors, anchor_masks, size):
 
 def load_fake_dataset():
     x_train = tf.image.decode_jpeg(
-        open('./tests/images/girl.png', 'rb').read(), channels=3)
+        open('D:/Voi/test_loop_imgs/girl.png', 'rb').read(), channels=3)
     x_train = tf.expand_dims(x_train, axis=0)
 
     labels = [
@@ -208,4 +210,6 @@ def load_fake_dataset():
     y_train = tf.convert_to_tensor(labels, tf.float32)
     y_train = tf.expand_dims(y_train, axis=0)
 
+    print(np.array(x_train).shape)
+    print(np.array(y_train).shape)
     return tf.data.Dataset.from_tensor_slices((x_train, y_train))
