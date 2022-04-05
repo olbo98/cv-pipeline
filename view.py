@@ -63,6 +63,7 @@ class View():
         
         
         
+        
 
     def draw_circle(self,x0,y0,x1,y1):
         self.ID = self.canvas_image.create_oval(x0,y0,x1,y1, width=3, fill='yellow')
@@ -70,17 +71,21 @@ class View():
     def draw_rectangle(self,x0,y0,x1,y1):
         self.ID = self.canvas_image.create_rectangle(x0,y0,x1,y1, width=3, outline='blue')
         
-    def show_img(self,image,path):
+    def show_img(self,image):
 
-        img = Image.open(os.path.join(path,image))
+        img = Image.open(image)
         img = img.resize((int(1280*0.899),int(966*0.899)))
-        img = ImageTk.PhotoImage(img)
+        self.img = ImageTk.PhotoImage(img)
         
-        self.canvas_image.create_image(0,0, anchor="nw",image=img)
-        label = Label(image=img)
-        label.image = img # keep a reference!
+        self.canvas_image.create_image(0,0, anchor="nw",image=self.img)
+        label = Label(image=self.img)
+        label.image = self.img # keep a reference!
         
-        
+    def get_width_height_img(self):
+        h = self.img.height()
+        w = self.img.width()
+        return h,w
+
     def close_window(self, event=None):
         self.window.destroy()
         
