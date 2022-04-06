@@ -161,9 +161,9 @@ def _meshgrid(n_a, n_b):
 def yolo_boxes(pred, anchors, classes):
     # pred: (batch_size, grid, grid, anchors, (x, y, w, h, obj, ...classes))
     grid_size = tf.shape(pred)[1:3]
+
     box_xy, box_wh, objectness, class_probs = tf.split(
         pred, (2, 2, 1, classes), axis=-1)
-
     box_xy = tf.sigmoid(box_xy)
     objectness = tf.sigmoid(objectness)
     class_probs = tf.sigmoid(class_probs)
@@ -203,6 +203,7 @@ def yolo_nms(outputs, anchors, masks, classes):
     else:
         scores = confidence * class_probs
 
+    
     dscores = tf.squeeze(scores, axis=0)
     scores = tf.reduce_max(dscores,[1])
     bbox = tf.reshape(bbox,(-1,4))
@@ -236,15 +237,13 @@ def yolo_nms(outputs, anchors, masks, classes):
 def YoloV3(size=None, channels=3, anchors=yolo_anchors,
            masks=yolo_anchor_masks, classes=80, training=False):
     x = inputs = Input([size, size, channels], name='input')        
-
     x_36, x_61, x = Darknet(name='yolo_darknet')(x)
 
     x = YoloConv(512, name='yolo_conv_0')(x)
-    output_0 = YoloOutput(512, len(masks[0]), classes, name='yolo_output_0')(x)
 
+    output_0 = YoloOutput(512, len(masks[0]), classes, name='yolo_output_0')(x)
     x = YoloConv(256, name='yolo_conv_1')((x, x_61))
     output_1 = YoloOutput(256, len(masks[1]), classes, name='yolo_output_1')(x)
-
     x = YoloConv(128, name='yolo_conv_2')((x, x_36))
     output_2 = YoloOutput(128, len(masks[2]), classes, name='yolo_output_2')(x)
 
