@@ -10,24 +10,31 @@ from pool import Pool
 
 def main():
     #labeled images
-    img_path = "D:/Voi/test_loop_imgs/20imgs"
-    label_path = "D:/Voi/test_loop_imgs/labels20imgs"
-
+    labeled_img_path = "D:/Voi/cv-pipeline/cv-pipline/labeled_images"
+    labeled_label_path = "D:/Voi/cv-pipeline/cv-pipline/annotations"
+    unlabeled_path = "D:/Voi/cv-pipeline/cv-pipline/images"
     weak_labeled_pool = Pool([], [])
     labeled_pool = Pool([], [])
     unlabeled_pool = []
-    unlabeled_path = "D:/Voi/cv-pipeline/cv-pipline/images"
+    
+    
     for image in os.listdir(unlabeled_path):
         unlabeled_pool.append(os.path.join(unlabeled_path,image))
+    for (img, label_file) in zip(os.listdir(labeled_img_path),os.listdir(labeled_label_path)):
+        img_labels = []
+        with open(labeled_label_path + "/" + label_file, "r") as f:
+            for line in f:
+                label = line.split(" ")
+                label = [float(x) for x in label]
+                img_labels.append(label)
+        labeled_pool.add_sample(img, img_labels)
 
     window = tk.Tk()
     view = View(window)
-    module = Module(view, img_path, label_path, unlabeled_path, labeled_pool, weak_labeled_pool, unlabeled_pool)
-    view.start_UI(module.first_state)
+    module = Module(view, labeled_img_path, labeled_label_path, unlabeled_path, labeled_pool, weak_labeled_pool, unlabeled_pool)
+    module.query_weak_annotations()
+    #view.start_UI(module.first_state)
     controller = Controller(module, view)
-    #module = Module(view, path)
-    #controller = Controller(module,view)
-    #view.start_UI()
     window.mainloop()
     
 

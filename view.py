@@ -77,7 +77,9 @@ class View():
             self.active_class = 4.0
     
     def draw_weak_Annotations(self):
+        self.canvas_main.pack_forget()
         self.canvas_training_sampling.pack_forget()
+        self.canvas_buttons.pack_forget()
         self.canvas_text.itemconfig(self.id1,text="Annotate by center-clicking an object", fill="black", font=('Helvetica 12 bold'))
         self.canvas_text.itemconfig(self.id2, text="Press 'n' to annotate the next image")
         self.canvas_text.itemconfig(self.id3, text="Press 'q' if the annotation of the images are done", font=('Helvetica', 8))
