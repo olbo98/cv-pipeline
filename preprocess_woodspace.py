@@ -1,7 +1,7 @@
 import os
 
 def main():
-    path = '/Users/olofbourghardt/Downloads/box_2d_annotations'
+    path = 'D:/Voi/cv-pipeline/cv-pipline/box_2d_annotations'
     label_files = os.listdir(path)
     image_width = 1280
     image_height = 966
