@@ -85,7 +85,6 @@ class Module():
         else:
             self.model = YoloV3(classes=80)
         self.model.load_weights(f"./checkpoints/yolov3_train_{self.epochs}.tf").expect_partial()
-        self.model.summary()
         if training == True:
             #loss = [YoloLoss(yolo_anchors[mask], classes=80) for mask in yolo_anchor_masks]
             self.model.compile(optimizer=self.optimizer, loss=self.loss)
@@ -156,9 +155,6 @@ class Module():
     #Drawing a circle by center-clicking on an object
     #Move on into the next images to annotate
     def query_weak_annotations(self): 
-        self.strong_annotations = False
-        self.set_images = self.unlabeled_pool
-        self.prepare_imgs(self.set_images)
         self.view.draw_weak_Annotations()
         self.set_images = iter(self.set_images)
         self.next_img()
@@ -222,9 +218,7 @@ class Module():
     #Strong annotate by drawing a bounding box around an object
     #Annotate by selecting the top left corner and release at the bottom right corner
     def query_strong_annotations(self):
-        self.strong_annotations = True
-        self.set_images = self.unlabeled_pool
-        self.prepare_imgs(self.set_images)
+        
         self.view.draw_strong_Annotations()
         self.set_images = iter(self.set_images)
         self.next_img()
