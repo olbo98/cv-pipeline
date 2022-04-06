@@ -29,6 +29,8 @@ def main():
     #controller = Controller(module,view)
     #view.start_UI()
     window.mainloop()
+    rect_coords = module.get_rect_coords()
+    print(rect_coords)
     
 
 if __name__ == "__main__":

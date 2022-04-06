@@ -132,7 +132,7 @@ class Module():
             w,h = self.view.get_width_height_img()
             self.view.draw_rectangle(x0, y0, x1, y1)
             self.shape_IDs.append(self.view.ID)
-            self.add_rect_coords(x0/w,y0/h,x1/w,y1/h)
+            self.add_rect_coords(x0/w,y0/h,x1/w,y1/h, self.view.active_class)
 
     #Sample images from dataset using a Least Confident method.
     #Confidence for an image is calculated as the highest bounding box probability in that image
@@ -220,7 +220,9 @@ class Module():
     #Strong annotate by drawing a bounding box around an object
     #Annotate by selecting the top left corner and release at the bottom right corner
     def query_strong_annotations(self):
-        
+        self.strong_annotations = True
+        self.set_images = self.unlabeled_pool
+        self.prepare_imgs(self.set_images)
         self.view.draw_strong_Annotations()
         self.set_images = iter(self.set_images)
         self.next_img()
@@ -311,8 +313,8 @@ class Module():
     def add_circle_coords(self,x,y):
         self.circle_coords[self.active_image].append([x,y])
 
-    def add_rect_coords(self,x0,y0,x1,y1):
-        self.rect_coords[self.active_image].append([x0,y0,x1,y1])
+    def add_rect_coords(self,x0,y0,x1,y1,c):
+        self.rect_coords[self.active_image].append([x0,y0,x1,y1,c])
     
     #Deleting the latest annotations from the list and the interface  
     def delete_annotations(self,event=None):
