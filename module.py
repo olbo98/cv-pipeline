@@ -66,18 +66,18 @@ class Module():
     def setup_model(self, training=True):
         #yolo = YoloV3()
         #yolo.load_weights('./checkpoints/yolov3.tf').expect_partial()
-        self.epochs = 1
+        epochs = 1
         batch_size = 1
         learning_rate=1e-5
         model = YoloV3(416, training=training, classes=80)
-        model.load_weights("./checkpoints/yolov3.tf").expect_partial()
+        #model.load_weights("./checkpoints/yolov3.tf").expect_partial()
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         loss = [YoloLoss(yolo_anchors[mask], classes=80) for mask in yolo_anchor_masks]
 
         model.compile(optimizer=optimizer, loss=loss)
 
 
-        return model, optimizer, loss, self.epochs, batch_size
+        return model, optimizer, loss, epochs, batch_size
 
     def load_model(self, training=False):
         if training == True:
@@ -85,7 +85,6 @@ class Module():
         else:
             self.model = YoloV3(classes=80)
         self.model.load_weights(f"./checkpoints/yolov3_train_{self.epochs}.tf").expect_partial()
-        self.model.summary()
         if training == True:
             #loss = [YoloLoss(yolo_anchors[mask], classes=80) for mask in yolo_anchor_masks]
             self.model.compile(optimizer=self.optimizer, loss=self.loss)
@@ -156,7 +155,6 @@ class Module():
     #Drawing a circle by center-clicking on an object
     #Move on into the next images to annotate
     def query_weak_annotations(self): 
-        
         self.view.draw_weak_Annotations()
         self.set_images = iter(self.set_images)
         self.next_img()
@@ -220,9 +218,7 @@ class Module():
     #Strong annotate by drawing a bounding box around an object
     #Annotate by selecting the top left corner and release at the bottom right corner
     def query_strong_annotations(self):
-        self.strong_annotations = True
-        self.set_images = self.unlabeled_pool
-        self.prepare_imgs(self.set_images)
+        
         self.view.draw_strong_Annotations()
         self.set_images = iter(self.set_images)
         self.next_img()
@@ -246,7 +242,7 @@ class Module():
         self.view.start_training_sampling()
         if self.curr_episode != 1:
             self.load_model(training=True)
-        self.test_train()
+        self.train_model()
         #self.train_model(self.model, self.labeled_pool, self.weak_labeled_pool, self.epochs, self.optimizer, self.loss, self.anchors, self.anchor_masks, self.batch_size)
         #sample from unlabeled pool and weak labeled pool
         union_set = self.unlabeled_pool
@@ -424,37 +420,9 @@ class Module():
             end_time = time.time() - start_time
             print(f'Total Training Time: {end_time}')
 
-    def train_model(self, model, labeled_pool, weak_labeled_pool, epochs, optimizer, loss, anchors, anchor_masks, batch_size):# 
+    def train_model(self):# 
         #setup datasets
-        train_dataset, val_dataset = self._setup_datasets(labeled_pool, weak_labeled_pool, anchors, anchor_masks, batch_size)
-        self._train_loop(model, epochs, train_dataset, val_dataset, optimizer, loss)
+        train_dataset, val_dataset = self._setup_datasets(self.labeled_pool, self.weak_labeled_pool, yolo_anchors, yolo_anchor_masks, self.batch_size)
+        self._train_loop(self.model, self.epochs, train_dataset, val_dataset, self.optimizer, self.loss)
         
-    def test_train(self):
-        
-        if self.curr_episode == 1:
-            img_path = self.img_path
-            label_path = self.label_path
-            file_names = os.listdir(img_path)
-            for file in file_names:
-                image_labels = []
-                with open(os.path.join(label_path, file[:-4]+".txt"), "r") as f:
-                    for line in f:
-                        line = line[:-1]
-                        line = line.split(" ")
-                        c = line.pop(0)
-                        line.append(c)
-                        for i in range(0, len(line)):
-                            line[i] = float(line[i])
-                        x1 = line[0] - (line[2]/2) #x1 = x - w/2
-                        y1 = line[1] - (line[3]/2) #y1 = y - h/2
-                        x2 = line[0] + (line[2]/2) #x2 = x + w/2
-                        y2 = line[1] + (line[3]/2) #y2 = y + h/2
-                        line[0] = x1
-                        line[1] = y1
-                        line[2] = x2
-                        line[3] = y2
-                        image_labels.append(line)
-                self.labeled_pool.add_sample(file, image_labels)
-
-        
-        self.train_model(self.model, self.labeled_pool, self.weak_labeled_pool, self.epochs, self.optimizer, self.loss, yolo_anchors, yolo_anchor_masks, self.batch_size)
+    

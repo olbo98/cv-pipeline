@@ -28,24 +28,22 @@ class View():
         self.canvas_main = tk.Canvas(self.window, width=self.app_width, height=self.app_height)
         self.canvas_training_sampling = tk.Canvas(self.window, width=self.app_width, height=self.app_height)
 
-        
-
-    
-        self.id1 = self.canvas_text.create_text(180, 80)
-        self.id2 = self.canvas_text.create_text(180, 110)
-        self.id3 = self.canvas_text.create_text(180, 190)
-        self.id4 = self.canvas_text.create_text(180, 150)
-
         button_width = 15
         button_height = 5
         
         self.pedestrians_btn = tk.Button(self.canvas_buttons, text="Label pedestrians", width=button_width, height=button_height, command= lambda c=0:self.change_btn_color(c))
         self.vehicles_btn = tk.Button(self.canvas_buttons, text="Label vehicles", width=button_width, height=button_height, command= lambda c=1:self.change_btn_color(c))
-        self.bicycle_btn = tk.Button(self.canvas_buttons, text="Label bicyle", width=button_width, height=button_height, command= lambda c=2:self.change_btn_color(c))
+        self.bicycle_btn = tk.Button(self.canvas_buttons, text="Label bicycle", width=button_width, height=button_height, command= lambda c=2:self.change_btn_color(c))
         self.traffLights_btn = tk.Button(self.canvas_buttons, text="Label traffic lights", width=button_width, height=button_height, command= lambda c=3:self.change_btn_color(c))
         self.traffSigns_btn = tk.Button(self.canvas_buttons, text="Label traffic signs", width=button_width, height=button_height, command= lambda c=4:self.change_btn_color(c))
         self.active_btn = self.pedestrians_btn
         self.active_class = 0.0
+        self.canvas_buttons.pack(side="left")
+
+        self.id1 = self.canvas_text.create_text(180, 80)
+        self.id2 = self.canvas_text.create_text(180, 110)
+        self.id3 = self.canvas_text.create_text(180, 190)
+        self.id4 = self.canvas_text.create_text(180, 150)
         self.window.attributes('-fullscreen', True)
         
     def change_btn_color(self,c):
@@ -78,6 +76,7 @@ class View():
     
     def draw_weak_Annotations(self):
         self.canvas_training_sampling.pack_forget()
+        self.canvas_text.pack(side="left")
         self.canvas_text.itemconfig(self.id1,text="Annotate by center-clicking an object", fill="black", font=('Helvetica 12 bold'))
         self.canvas_text.itemconfig(self.id2, text="Press 'n' to annotate the next image")
         self.canvas_text.itemconfig(self.id3, text="Press 'q' if the annotation of the images are done", font=('Helvetica', 8))
@@ -86,6 +85,7 @@ class View():
         
     def draw_strong_Annotations(self):
         self.canvas_text.pack_forget()
+        self.canvas_buttons.pack(side="left")
         self.pedestrians_btn.place(x=150,y=100)
         self.vehicles_btn.place(x=150,y=250)
         self.bicycle_btn.place(x=150, y=400)
@@ -94,6 +94,7 @@ class View():
         
 
     def start_UI(self,func):
+        self.canvas_buttons.pack_forget()
         self.canvas_main.pack()
         self.start_button = tk.Button(self.canvas_main, text="Start", padx=30, pady=15, command=func)
         self.start_button.place(relx=0.5, rely=0.5, anchor="center")
@@ -125,7 +126,7 @@ class View():
     def get_width_height_img(self):
         h = self.img.height()
         w = self.img.width()
-        return h,w
+        return w,h
 
     def close_window(self, event=None):
         self.window.destroy()
