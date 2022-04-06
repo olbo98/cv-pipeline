@@ -345,10 +345,6 @@ class Module():
         y_val = y_val.to_tensor()
         
         train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-
-        for batch, (imge,label) in enumerate(train_dataset):
-            print("Img", imge.shape)
-            print("Label", label.shape)
         val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
         
         train_dataset = train_dataset.shuffle(buffer_size=512)
