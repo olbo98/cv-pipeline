@@ -23,12 +23,14 @@ def main():
     window = tk.Tk()
     view = View(window)
     module = Module(view, img_path, label_path, unlabeled_path, labeled_pool, weak_labeled_pool, unlabeled_pool)
-    view.start_UI(module.first_state)
+    view.start_UI(module.query_strong_annotations)
     controller = Controller(module, view)
     #module = Module(view, path)
     #controller = Controller(module,view)
     #view.start_UI()
     window.mainloop()
+    rect_coords = module.get_rect_coords()
+    print(rect_coords)
     
 
 if __name__ == "__main__":
