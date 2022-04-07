@@ -79,7 +79,6 @@ class View():
         self.canvas_text.pack(side="left")
         self.canvas_text.itemconfig(self.id1,text="Annotate by center-clicking an object", fill="black", font=('Helvetica 12 bold'))
         self.canvas_text.itemconfig(self.id2, text="Press 'n' to annotate the next image")
-        self.canvas_text.itemconfig(self.id3, text="Press 'q' if the annotation of the images are done", font=('Helvetica', 8))
         self.canvas_text.itemconfig(self.id4, text="Delete latest annotation by pressing 'd'", font=('Helvetica', 8))
     
         

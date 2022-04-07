@@ -10,9 +10,9 @@ from pool import Pool
 
 def main():
     #labeled images
-    labeled_img_path = "D:/Voi/cv-pipeline/cv-pipline/labeled_images"
-    labeled_label_path = "D:/Voi/cv-pipeline/cv-pipline/annotations"
-    unlabeled_path = "D:/Voi/cv-pipeline/cv-pipline/images"
+    labeled_img_path = "D:/Exjobb/cv-pipeline/labeled_images"
+    labeled_label_path = "D:/Exjobb/cv-pipeline/annotations"
+    unlabeled_path = "D:/Exjobb/cv-pipeline/unlabeled_images"
     weak_labeled_pool = Pool([], [])
     labeled_pool = Pool([], [])
     unlabeled_pool = []

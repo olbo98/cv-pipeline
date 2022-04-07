@@ -67,7 +67,7 @@ class Module():
         #yolo = YoloV3()
         #yolo.load_weights('./checkpoints/yolov3.tf').expect_partial()
         epochs = 1
-        batch_size = 1
+        batch_size = 15
         learning_rate=1e-5
         model = YoloV3(416, training=training, classes=80)
         #model.load_weights("./checkpoints/yolov3.tf").expect_partial()
@@ -140,6 +140,7 @@ class Module():
         
         highest_scores = []
         for image in set:
+            print("SAMPLING IMAGES")
             img = self.prepocess_img(image)
             img = tf.expand_dims(img, axis=0)
             img = img/255
