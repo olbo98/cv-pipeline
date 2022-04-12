@@ -10,6 +10,7 @@ unlabeled_images/
 checkpoints/*
 !checkpoints/readme.txt
 logs/*
+quantized_models/*
 
 #Cache that is not necessary to push
 __pycache__/
