@@ -21,7 +21,7 @@ from tensorflow.keras.callbacks import (
 )
 import time
 import numpy as np
-import threading
+import shutil
 #
 class Module():
     """
@@ -30,7 +30,7 @@ class Module():
     save coordinates, annotates images to then send to the interface
     as well as pseudolabels the images.
     """
-    def __init__(self, view: View, img_path, label_path, unlabeled_path, labeled_pool: Pool, weak_labeled_pool: Pool, unlabeled_pool):
+    def __init__(self, view: View, img_path, label_path, unlabeled_path, weak_labeled_path):
         self.set_images = []
         self.view = view
         self.circle_coords = {}
@@ -40,10 +40,9 @@ class Module():
         self.img_path = img_path
         self.label_path = label_path
         self.unlabeled_path = unlabeled_path
+        self.weak_labeled_path = weak_labeled_path
         self.strong_annotations = False 
-        self.unlabeled_pool = unlabeled_pool
-        self.labeled_pool = labeled_pool
-        self.weak_labeled_pool = weak_labeled_pool
+        self.unlabeled_pool, self.weak_labeled_pool, self.labeled_pool = self.load_pools(self.unlabeled_path, self.label_path, self.img_path, self.weak_labeled_path)
         self.curr_episode = 1
         self.model, self.optimizer, self.loss, self.epochs, self.batch_size = self.setup_model()
         
@@ -66,8 +65,8 @@ class Module():
     def setup_model(self, training=True):
         #yolo = YoloV3()
         #yolo.load_weights('./checkpoints/yolov3.tf').expect_partial()
-        epochs = 1
-        batch_size = 15
+        epochs = 10
+        batch_size = 1
         learning_rate=1e-5
         model = YoloV3(416, training=training, classes=80)
         #model.load_weights("./checkpoints/yolov3.tf").expect_partial()
@@ -88,6 +87,39 @@ class Module():
         if training == True:
             #loss = [YoloLoss(yolo_anchors[mask], classes=80) for mask in yolo_anchor_masks]
             self.model.compile(optimizer=self.optimizer, loss=self.loss)
+
+    def load_pools(self, unlabeled_path, labels_path, img_path, weak_labeled_path):
+        unlabeled_pool = []
+        weak_labeled_pool = Pool([], [])
+        labeled_pool = Pool([], [])
+        for image in os.listdir(unlabeled_path):
+            unlabeled_pool.append(os.path.join(unlabeled_path, image))
+
+        labeled_images = os.listdir(img_path)
+        for image in labeled_images:
+            labels = []
+            full_path = os.path.join(img_path, image)
+            with open(os.path.join(labels_path, image[:-4]+'.txt'), 'r') as f:
+                for line in f:
+                    values = line.split(" ")
+                    values = [float(v) for v in values]
+                    labels.append(values)
+            labeled_pool.add_sample(full_path, labels)
+        
+        weak_img_path = os.path.join(weak_labeled_path, 'images')
+        weak_label_path = os.path.join(weak_labeled_path, 'annotations')
+        weak_labeled_images = os.listdir(weak_img_path)
+        for image in weak_labeled_images:
+            labels = []
+            full_path = os.path.join(weak_img_path, image)
+            with open(os.path.join(weak_label_path, image[:-4]+'.txt'), 'r') as f:
+                for line in f:
+                    values = line.split(" ")
+                    values = [float(v) for v in values]
+                    labels.append(values)
+            weak_labeled_pool.add_sample(full_path, labels)
+        
+        return unlabeled_pool, weak_labeled_pool, labeled_pool
     
     #Opens the image the prepocess it to a functionable size
     def prepocess_img(self, image, size=416):
@@ -239,7 +271,6 @@ class Module():
         #Note: Should we delete the samples from the other pools when they are inserted to the new pools? And should that be done in active_sampling?
 
     def first_state(self):
-
         self.view.start_training_sampling()
         if self.curr_episode != 1:
             self.load_model(training=True)
@@ -250,7 +281,7 @@ class Module():
         for sample in self.weak_labeled_pool.get_all_samples():
             union_set.append(sample)
         self.load_model(training=False)
-        self.samples = self.active_smapling(union_set, 3)
+        self.samples = self.active_smapling(union_set, 20)
         #delete samples from pools
         for sample in self.samples:
             if sample in self.unlabeled_pool:
@@ -279,12 +310,49 @@ class Module():
         self.prepare_imgs(self.set_images)
         self.query_strong_annotations()
         
+    def save_labels(self):
+        #save labeled pool
+        for i in range(0, self.labeled_pool.get_len()):
+            image_path, labels = self.labeled_pool.get_sample(i)
+            basename = os.path.basename(image_path)
+            try:
+                shutil.copyfile(image_path, 'D:/Exjobb/cv-pipeline/labeled_images/' + basename)
+            except:
+                continue
+            os.remove(image_path)
+            with open('D:/Exjobb/cv-pipeline/annotations/'+basename[:-4]+'.txt', 'w') as f:
+                for label in labels:
+                    for i in range(0, len(label)):
+                        f.write(str(label[i]))
+                        if i == len(label)-1:
+                            f.write("\n")
+                        else:
+                            f.write(" ")
+        
+        #save weak labels
+        for i in range(0, self.weak_labeled_pool.get_len()):
+            image_path, labels = self.weak_labeled_pool.get_sample(i)
+            basename = os.path.basename(image_path)
+            try:
+                shutil.copyfile(image_path, 'D:/Exjobb/cv-pipeline/weaklabeled_images/images/' + basename)
+            except:
+                continue
+            os.remove(image_path)
+            with open('D:/Exjobb/cv-pipeline/weaklabeled_images/annotations/'+basename[:-4]+'.txt', 'w') as f:
+                for label in labels:
+                    for i in range(0, len(label)):
+                        f.write(str(label[i]))
+                        if i == len(label)-1:
+                            f.write("\n")
+                        else:
+                            f.write(" ")
 
     def fifth_state(self):
         s_low_strong = self.get_rect_coords()
         for sample in s_low_strong:
             self.labeled_pool.add_sample(sample, s_low_strong[sample])
         self.curr_episode += 1
+        self.save_labels()
         self.first_state()
         
 
