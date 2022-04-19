@@ -32,6 +32,7 @@ def main():
     window = tk.Tk()
     view = View(window)
     module = Module(view, labeled_img_path, labeled_label_path, unlabeled_path, labeled_pool, weak_labeled_pool, unlabeled_pool)
+    #module.quantize_tflite_model("fullInt")
     view.start_UI(module.first_state)
     controller = Controller(module, view)
     window.mainloop()
