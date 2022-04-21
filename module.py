@@ -1,4 +1,5 @@
 import enum
+import datetime
 from models import (
     YoloV3, YoloLoss,
     yolo_anchors, yolo_anchor_masks,
@@ -30,22 +31,22 @@ class Module():
     save coordinates, annotates images to then send to the interface
     as well as pseudolabels the images.
     """
-    def __init__(self, view: View, img_path, label_path, unlabeled_path, weak_labeled_path):
+    def __init__(self, view: View, path_to_labeled_imgs, path_to_labels, path_to_unlabeled_imgs, path_to_weak_imgs):
         self.set_images = []
         self.view = view
         self.circle_coords = {}
         self.rect_coords = {}
         self.shape_IDs = []
         self.active_image = ''
-        self.img_path = img_path
-        self.label_path = label_path
-        self.unlabeled_path = unlabeled_path
-        self.weak_labeled_path = weak_labeled_path
+        self.path_to_labeled_imgs = path_to_labeled_imgs
+        self.path_to_labels = path_to_labels
+        self.path_to_unlabeled_imgs = path_to_unlabeled_imgs
+        self.path_to_weak_imgs = path_to_weak_imgs
         self.strong_annotations = False 
-        self.unlabeled_pool, self.weak_labeled_pool, self.labeled_pool = self.load_pools(self.unlabeled_path, self.label_path, self.img_path, self.weak_labeled_path)
+        self.unlabeled_pool, self.weak_labeled_pool, self.labeled_pool = self.load_pools(self.path_to_unlabeled_imgs, self.path_to_labels, self.path_to_labeled_imgs, self.path_to_weak_imgs)
         self.curr_episode = 1
         self.model, self.optimizer, self.loss, self.epochs, self.batch_size = self.setup_model()
-        
+        self.i = 0
 
     def prepare_imgs(self,set_images):
         set_images = iter(set_images)
@@ -65,13 +66,15 @@ class Module():
     def setup_model(self, training=True):
         #yolo = YoloV3()
         #yolo.load_weights('./checkpoints/yolov3.tf').expect_partial()
-        epochs = 10
+        epochs = 1
         batch_size = 1
         learning_rate=1e-5
-        model = YoloV3(416, training=training, classes=80)
+        model = YoloV3(416, training=training, classes=5)
+        #REMOVE AFTER DEBUGGING
+        model.load_weights(f"./checkpoints/yolov3_train_10.tf").expect_partial()
         #model.load_weights("./checkpoints/yolov3.tf").expect_partial()
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-        loss = [YoloLoss(yolo_anchors[mask], classes=80) for mask in yolo_anchor_masks]
+        loss = [YoloLoss(yolo_anchors[mask], classes=5) for mask in yolo_anchor_masks]
 
         model.compile(optimizer=optimizer, loss=loss)
 
@@ -80,9 +83,9 @@ class Module():
 
     def load_model(self, training=False):
         if training == True:
-            self.model = YoloV3(416, training=training, classes=80)
+            self.model = YoloV3(416, training=training, classes=5)
         else:
-            self.model = YoloV3(classes=80)
+            self.model = YoloV3(classes=5)
         self.model.load_weights(f"./checkpoints/yolov3_train_{self.epochs}.tf").expect_partial()
         if training == True:
             #loss = [YoloLoss(yolo_anchors[mask], classes=80) for mask in yolo_anchor_masks]
@@ -123,7 +126,7 @@ class Module():
     
     #Opens the image the prepocess it to a functionable size
     def prepocess_img(self, image, size=416):
-        with open(os.path.join(self.img_path,image), 'rb') as i:
+        with open(image, 'rb') as i:
             img_raw =  tf.image.decode_image(i.read(), channels=3)
             #img = tf.expand_dims(img_raw, 0)
             #img = self.transform_image(img_raw, size)
@@ -253,6 +256,7 @@ class Module():
     def query_strong_annotations(self):
         
         self.view.draw_strong_Annotations()
+        print("set_images stron anno", len(self.set_images))
         self.set_images = iter(self.set_images)
         self.next_img()
 
@@ -281,7 +285,7 @@ class Module():
         for sample in self.weak_labeled_pool.get_all_samples():
             union_set.append(sample)
         self.load_model(training=False)
-        self.samples = self.active_smapling(union_set, 20)
+        self.samples = self.active_smapling(union_set, 100)
         #delete samples from pools
         for sample in self.samples:
             if sample in self.unlabeled_pool:
@@ -298,6 +302,7 @@ class Module():
 
     def third_state(self):
         circle_coords = self.get_circle_coords()
+        print("circle_coords", len(circle_coords))
         p_s = self.pseudo_labels(circle_coords)
         s_low, pseudo_high = self.soft_switch(self.samples, p_s, 0.75)
         for sample in pseudo_high:
@@ -316,11 +321,12 @@ class Module():
             image_path, labels = self.labeled_pool.get_sample(i)
             basename = os.path.basename(image_path)
             try:
-                shutil.copyfile(image_path, 'D:/Exjobb/cv-pipeline/labeled_images/' + basename)
+                shutil.copyfile(image_path, os.path.join(self.path_to_labeled_imgs, basename))
             except:
                 continue
             os.remove(image_path)
-            with open('D:/Exjobb/cv-pipeline/annotations/'+basename[:-4]+'.txt', 'w') as f:
+            self.labeled_pool.change_sample_path(i, os.path.join(self.path_to_labeled_imgs, basename))
+            with open(self.path_to_labels+"/"+basename[:-4]+'.txt', 'w') as f:
                 for label in labels:
                     for i in range(0, len(label)):
                         f.write(str(label[i]))
@@ -329,16 +335,18 @@ class Module():
                         else:
                             f.write(" ")
         
-        #save weak labels
+        #save weak labeled pool
         for i in range(0, self.weak_labeled_pool.get_len()):
             image_path, labels = self.weak_labeled_pool.get_sample(i)
             basename = os.path.basename(image_path)
             try:
-                shutil.copyfile(image_path, 'D:/Exjobb/cv-pipeline/weaklabeled_images/images/' + basename)
+                shutil.copyfile(image_path, self.path_to_weak_imgs+'/images/' + basename)
             except:
                 continue
             os.remove(image_path)
-            with open('D:/Exjobb/cv-pipeline/weaklabeled_images/annotations/'+basename[:-4]+'.txt', 'w') as f:
+            self.weak_labeled_pool.change_sample_path(i, self.path_to_weak_imgs + '/images/' + basename)
+
+            with open(self.path_to_weak_imgs+'/annotations/'+basename[:-4]+'.txt', 'w') as f:
                 for label in labels:
                     for i in range(0, len(label)):
                         f.write(str(label[i]))
@@ -349,6 +357,7 @@ class Module():
 
     def fifth_state(self):
         s_low_strong = self.get_rect_coords()
+        print("s_low_strong", len(s_low_strong))
         for sample in s_low_strong:
             self.labeled_pool.add_sample(sample, s_low_strong[sample])
         self.curr_episode += 1
@@ -362,6 +371,7 @@ class Module():
             image = next(self.set_images)
             self.active_image = image
         except StopIteration:
+            self.i = 0
             if self.strong_annotations == False:
                 self.third_state()
             elif self.strong_annotations == True:
@@ -475,7 +485,7 @@ class Module():
                 model.save_weights(
                     'checkpoints/yolov3_train_{}.tf'.format(epoch))
         else:
-
+            log_dir = 'logs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
             callbacks = [
                 ReduceLROnPlateau(verbose=1),
                 EarlyStopping(patience=3, verbose=1),
