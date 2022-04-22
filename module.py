@@ -23,7 +23,8 @@ from tensorflow.keras.callbacks import (
 import time
 import numpy as np
 import shutil
-#
+import random
+
 class Module():
     """
     A class that represents the adaptive super vision module. 
@@ -96,7 +97,7 @@ class Module():
         labeled_pool = Pool([], [])
         for image in os.listdir(unlabeled_path):
             unlabeled_pool.append(os.path.join(unlabeled_path, image))
-
+        random.shuffle(unlabeled_pool)
         labeled_images = os.listdir(img_path)
         for image in labeled_images:
             labels = []
@@ -285,7 +286,7 @@ class Module():
         for sample in self.weak_labeled_pool.get_all_samples():
             union_set.append(sample)
         self.load_model(training=False)
-        self.samples = self.active_smapling(union_set, 100)
+        self.samples = self.active_smapling(union_set, 10)
         #delete samples from pools
         for sample in self.samples:
             if sample in self.unlabeled_pool:
