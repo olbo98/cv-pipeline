@@ -35,3 +35,6 @@ class Pool():
             return True
         except:
             return False
+
+    def change_sample_path(self, index, new_path):
+        self._images[index] = new_path

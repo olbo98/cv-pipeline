@@ -121,5 +121,16 @@ class TestPreprocessImage(unittest.TestCase):
 
         self.assertEqual(image_shape, test_array_shape, "Wrong shape")
 
+class TestLoadPools(unittest.TestCase):
+    def test_load_pools(self):
+        module = Module(None, 'D:/Exjobb/cv-pipeline/labeled_images', 'D:/Exjobb/cv-pipeline/annotations', 'D:/Exjobb/cv-pipeline/unlabeled_images', 'D:/Exjobb/cv-pipeline/weaklabeled_images')
+        unlabeled_pool = module.unlabeled_pool
+        labeled_pool: Pool = module.labeled_pool
+        weak_labeled_pool: Pool = module.weak_labeled_pool
+
+        self.assertEqual(len(unlabeled_pool), len(os.listdir('D:/Exjobb/cv-pipeline/unlabeled_images')))
+        self.assertEqual(labeled_pool.get_len(), len(os.listdir('D:/Exjobb/cv-pipeline/labeled_images')))
+        self.assertEqual(weak_labeled_pool.get_len(), len(os.listdir('D:/Exjobb/cv-pipeline/weaklabeled_images/images')))
+
 if __name__ == "__main__":
     unittest.main()

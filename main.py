@@ -1,3 +1,5 @@
+from email.mime import base
+import random
 import tkinter as tk
 import os
 from module import Module
@@ -6,32 +8,20 @@ from controller import Controller
 import numpy as np
 from PIL import Image
 from pool import Pool
+import shutil #REMOVE
 
 
 def main():
     #labeled images
-    labeled_img_path = "D:/Voi/cv-pipeline/cv-pipline/labeled_images"
-    labeled_label_path = "D:/Voi/cv-pipeline/cv-pipline/annotations"
-    unlabeled_path = "D:/Voi/cv-pipeline/cv-pipline/unlabeled_images"
-    weak_labeled_pool = Pool([], [])
-    labeled_pool = Pool([], [])
-    unlabeled_pool = []
-    
-    
-    for image in os.listdir(unlabeled_path):
-        unlabeled_pool.append(os.path.join(unlabeled_path,image))
-    for (img, label_file) in zip(os.listdir(labeled_img_path),os.listdir(labeled_label_path)):
-        img_labels = []
-        with open(labeled_label_path + "/" + label_file, "r") as f:
-            for line in f:
-                label = line.split(" ")
-                label = [float(x) for x in label]
-                img_labels.append(label)
-        labeled_pool.add_sample(img, img_labels)
+    path_to_labeled_imgs = "D:/Exjobb/cv-pipeline/labeled_images"
+    path_to_labels = "D:/Exjobb/cv-pipeline/annotations"
+    path_to_unlabeled_imgs = "D:/Exjobb/cv-pipeline/unlabeled_images"
+    path_to_weak_imgs = "D:/Exjobb/cv-pipeline/weaklabeled_images"
 
     window = tk.Tk()
     view = View(window)
-    module = Module(view, labeled_img_path, labeled_label_path, unlabeled_path, labeled_pool, weak_labeled_pool, unlabeled_pool)
+    module = Module(view, path_to_labeled_imgs, path_to_labels, path_to_unlabeled_imgs, path_to_weak_imgs)
+
     view.start_UI(module.first_state)
     controller = Controller(module, view)
     window.mainloop()
