@@ -46,7 +46,6 @@ class Module():
         self.unlabeled_pool, self.weak_labeled_pool, self.labeled_pool = self.load_pools(self.path_to_unlabeled_imgs, self.path_to_labels, self.path_to_labeled_imgs, self.path_to_weak_imgs)
         self.curr_episode = 1
         self.model, self.optimizer, self.loss, self.epochs, self.batch_size = self.setup_model()
-        self.i = 0
 
     def prepare_imgs(self,set_images):
         set_images = iter(set_images)
@@ -66,7 +65,7 @@ class Module():
     def setup_model(self, training=True):
         #yolo = YoloV3()
         #yolo.load_weights('./checkpoints/yolov3.tf').expect_partial()
-        epochs = 1
+        epochs = 10
         batch_size = 1
         learning_rate=1e-5
         model = YoloV3(416, training=training, classes=5)
@@ -256,7 +255,6 @@ class Module():
     def query_strong_annotations(self):
         
         self.view.draw_strong_Annotations()
-        print("set_images stron anno", len(self.set_images))
         self.set_images = iter(self.set_images)
         self.next_img()
 
@@ -278,8 +276,10 @@ class Module():
         self.view.start_training_sampling()
         if self.curr_episode != 1:
             self.load_model(training=True)
-        self.train_model()
-        #self.train_model(self.model, self.labeled_pool, self.weak_labeled_pool, self.epochs, self.optimizer, self.loss, self.anchors, self.anchor_masks, self.batch_size)
+
+        if self.labeled_pool.get_len() != 0:
+            self.train_model()
+            
         #sample from unlabeled pool and weak labeled pool
         union_set = self.unlabeled_pool
         for sample in self.weak_labeled_pool.get_all_samples():
@@ -302,7 +302,6 @@ class Module():
 
     def third_state(self):
         circle_coords = self.get_circle_coords()
-        print("circle_coords", len(circle_coords))
         p_s = self.pseudo_labels(circle_coords)
         s_low, pseudo_high = self.soft_switch(self.samples, p_s, 0.75)
         for sample in pseudo_high:
@@ -357,7 +356,6 @@ class Module():
 
     def fifth_state(self):
         s_low_strong = self.get_rect_coords()
-        print("s_low_strong", len(s_low_strong))
         for sample in s_low_strong:
             self.labeled_pool.add_sample(sample, s_low_strong[sample])
         self.curr_episode += 1
@@ -489,7 +487,7 @@ class Module():
             callbacks = [
                 ReduceLROnPlateau(verbose=1),
                 EarlyStopping(patience=3, verbose=1),
-                ModelCheckpoint('checkpoints/yolov3_train_{epoch}.tf',
+                ModelCheckpoint('checkpoints/yolov3_train.tf',
                                 verbose=1, save_weights_only=True),
                 TensorBoard(log_dir='logs')
             ]
@@ -498,7 +496,7 @@ class Module():
             history = model.fit(train_dataset, epochs=epochs,callbacks=callbacks, validation_data=val_dataset)
             end_time = time.time() - start_time
             print(f'Total Training Time: {end_time}')
-
+            model.save('./saved_model/yolo_model')
     def train_model(self):# 
         #setup datasets
         train_dataset, val_dataset = self._setup_datasets(self.labeled_pool, self.weak_labeled_pool, yolo_anchors, yolo_anchor_masks, self.batch_size)
@@ -506,10 +504,11 @@ class Module():
    
 
     def quantize_tflite_model(self, quantization):
-        self.model = YoloV3(416, classes=80)
-        self.model.load_weights(f"./checkpoints/yolov3_train_{self.epochs}.tf").expect_partial()
-        converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
+        #self.model = YoloV3(416, classes=80)
+        #self.model.load_weights(f"./checkpoints/yolov3_train_{self.epochs}.tf").expect_partial()
+        #converter = tf.lite.TFLiteConverter.from_keras_model('/saved_model')
 
+        converter = tf.lite.TFLiteConverter.from_saved_model('./saved_model/yolo_model')
         if quantization == 'dynamic':
             converter.optimizations = [tf.lite.Optimize.DEFAULT]
             dynamic_quantized_model = converter.convert()
