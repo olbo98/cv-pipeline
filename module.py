@@ -503,5 +503,41 @@ class Module():
         #setup datasets
         train_dataset, val_dataset = self._setup_datasets(self.labeled_pool, self.weak_labeled_pool, yolo_anchors, yolo_anchor_masks, self.batch_size)
         self._train_loop(self.model, self.epochs, train_dataset, val_dataset, self.optimizer, self.loss)
-        
-    
+   
+
+    def quantize_tflite_model(self, quantization):
+        self.model = YoloV3(416, classes=80)
+        self.model.load_weights(f"./checkpoints/yolov3_train_{self.epochs}.tf").expect_partial()
+        converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
+
+        if quantization == 'dynamic':
+            converter.optimizations = [tf.lite.Optimize.DEFAULT]
+            dynamic_quantized_model = converter.convert()
+
+            with open("./quantized_models/dynamic_quantized_model.tflite", 'wb') as f:
+                f.write(dynamic_quantized_model)
+            print("Dynamic range quantized model in Mb:", os.path.getsize("./quantized_models/dynamic_quantized_model.tflite") / float(2**20))
+
+        if quantization == 'fullInt':
+            def representative_dataset():
+                for _ in range(250):
+                    yield [tf.random.uniform(shape=[1, 416, 416, 3], minval=0.0, maxval=1.0, dtype=tf.dtypes.float32)]
+
+            converter.optimizations = [tf.lite.Optimize.DEFAULT]
+            converter.representative_dataset = representative_dataset
+            fullInt_quantized_model = converter.convert()
+
+            with open("./quantized_models/fullInt_quantized_model.tflite", 'wb') as f:
+                f.write(fullInt_quantized_model)
+            print("Full integer quantized model in Mb:", os.path.getsize("./quantized_models/fullInt_quantized_model.tflite") / float(2**20))
+
+        if quantization == 'float16':
+            converter.optimizations = [tf.lite.Optimize.DEFAULT]
+            converter.target_spec.supported_types = [tf.float16]
+            float16_quantized_model = converter.convert()
+
+            with open("./quantized_models/float16_quantized_model.tflite", 'wb') as f:
+                f.write(float16_quantized_model)
+            print("Float16 quantized model in Mb:", os.path.getsize("./quantized_models/float16_quantized_model.tflite") / float(2**20))
+
+            
