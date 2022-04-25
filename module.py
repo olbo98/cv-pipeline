@@ -66,12 +66,10 @@ class Module():
     def setup_model(self, training=True):
         #yolo = YoloV3()
         #yolo.load_weights('./checkpoints/yolov3.tf').expect_partial()
-        epochs = 10
+        epochs = 50
         batch_size = 1
         learning_rate=1e-5
         model = YoloV3(416, training=training, classes=5)
-        #REMOVE AFTER DEBUGGING
-        model.load_weights(f"./checkpoints/yolov3_train_10.tf").expect_partial()
         #model.load_weights("./checkpoints/yolov3.tf").expect_partial()
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         loss = [YoloLoss(yolo_anchors[mask], classes=5) for mask in yolo_anchor_masks]
@@ -86,7 +84,7 @@ class Module():
             self.model = YoloV3(416, training=training, classes=5)
         else:
             self.model = YoloV3(classes=5)
-        self.model.load_weights(f"./checkpoints/yolov3_train_{self.epochs}.tf").expect_partial()
+        self.model.load_weights(f"./checkpoints/yolov3_train.tf").expect_partial()
         if training == True:
             #loss = [YoloLoss(yolo_anchors[mask], classes=80) for mask in yolo_anchor_masks]
             self.model.compile(optimizer=self.optimizer, loss=self.loss)
@@ -287,7 +285,7 @@ class Module():
         for sample in self.weak_labeled_pool.get_all_samples():
             union_set.append(sample)
         self.load_model(training=False)
-        self.samples = self.active_smapling(union_set, 5)
+        self.samples = self.active_smapling(union_set, 500)
         #delete samples from pools
         for sample in self.samples:
             if sample in self.unlabeled_pool:
@@ -305,7 +303,7 @@ class Module():
     def third_state(self):
         circle_coords = self.get_circle_coords()
         p_s = self.pseudo_labels(circle_coords)
-        s_low, pseudo_high = self.soft_switch(self.samples, p_s, 0.75)
+        s_low, pseudo_high = self.soft_switch(self.samples, p_s, 0.6)
         for sample in pseudo_high:
             self.weak_labeled_pool.add_sample(sample[0], sample[1])
         self.fourth_state(s_low)
