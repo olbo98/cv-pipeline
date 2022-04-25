@@ -24,6 +24,7 @@ import time
 import numpy as np
 import shutil
 import random
+from mapcalc import calculate_map
 
 class Module():
     """
@@ -279,12 +280,13 @@ class Module():
 
         if self.labeled_pool.get_len() != 0:
             self.train_model()
+        self.load_model(training=False)
+        self.test_model()
             
         #sample from unlabeled pool and weak labeled pool
         union_set = self.unlabeled_pool
         for sample in self.weak_labeled_pool.get_all_samples():
             union_set.append(sample)
-        self.load_model(training=False)
         self.samples = self.active_smapling(union_set, 500)
         #delete samples from pools
         for sample in self.samples:
@@ -502,6 +504,43 @@ class Module():
         train_dataset, val_dataset = self._setup_datasets(self.labeled_pool, self.weak_labeled_pool, yolo_anchors, yolo_anchor_masks, self.batch_size)
         self._train_loop(self.model, self.epochs, train_dataset, val_dataset, self.optimizer, self.loss)
    
+    def test_model(self):
+        path_to_test_images = os.path.join(self.path_to_testset, "/images")
+        path_to_test_labels = os.path.join(self.path_to_testset, "/annotations")
+        test_images = os.listdir(path_to_test_images)
+        gt_classes = []
+        gt_boxes = []
+        pred_classes = []
+        pred_boxes = []
+        pred_scores = []
+        for image in test_images:
+            path_to_image = os.path.join(path_to_test_images, image)
+            img = self.prepocess_img(path_to_image)
+            with open(os.path.join(path_to_test_labels, image[:-4]+".txt"), "r") as f:
+                for line in f:
+                    label = line.split(" ")
+                    label = [float(x) for x in label]
+                    gt_classes.append(label.pop())
+                    gt_boxes.append(label)
+            boxes, scores, classes, _ = self.model.predict(img)
+            for box, score, c in zip(boxes[0], scores[0], classes[0]):
+                pred_classes.append(c)
+                pred_boxes.append(box)
+                pred_scores.append(score)
+        gt = {
+            "boxes": gt_boxes,
+            "labels": gt_classes
+        }
+        pred_boxes = pred_boxes.tolist()
+        pred_scores = pred_scores.tolist()
+        pred_classes = pred_classes.tolist()
+
+        pred = {'boxes':pred_boxes,'labels':pred_classes, 'scores':pred_scores}
+        mAP = calculate_map(gt, pred, 0.5)
+        print("mAP:", mAP)
+        with open("./checkpoints/mAPs.txt", "a") as f:
+            f.write(mAP+"\n")
+
 
     def quantize_tflite_model(self, quantization):
         #self.model = YoloV3(416, classes=80)
