@@ -526,6 +526,12 @@ class Module():
 
             converter.optimizations = [tf.lite.Optimize.DEFAULT]
             converter.representative_dataset = representative_dataset
+            # Restricting supported target op specification to INT8
+            converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+
+            # Set the input and output tensors to uint8 
+            converter.inference_input_type = tf.uint8
+            converter.inference_output_type = tf.uint8
             fullInt_quantized_model = converter.convert()
 
             with open("./quantized_models/fullInt_quantized_model.tflite", 'wb') as f:
