@@ -33,7 +33,7 @@ class Module():
     save coordinates, annotates images to then send to the interface
     as well as pseudolabels the images.
     """
-    def __init__(self, view: View, path_to_labeled_imgs, path_to_labels, path_to_unlabeled_imgs, path_to_weak_imgs):
+    def __init__(self, view: View, path_to_labeled_imgs, path_to_labels, path_to_unlabeled_imgs, path_to_weak_imgs, path_to_testset):
         self.set_images = []
         self.view = view
         self.circle_coords = {}
@@ -44,6 +44,7 @@ class Module():
         self.path_to_labels = path_to_labels
         self.path_to_unlabeled_imgs = path_to_unlabeled_imgs
         self.path_to_weak_imgs = path_to_weak_imgs
+        self.path_to_testset = path_to_testset
         self.strong_annotations = False 
         self.unlabeled_pool, self.weak_labeled_pool, self.labeled_pool = self.load_pools(self.path_to_unlabeled_imgs, self.path_to_labels, self.path_to_labeled_imgs, self.path_to_weak_imgs)
         self.curr_episode = 1
@@ -505,8 +506,8 @@ class Module():
         self._train_loop(self.model, self.epochs, train_dataset, val_dataset, self.optimizer, self.loss)
    
     def test_model(self):
-        path_to_test_images = os.path.join(self.path_to_testset, "/images")
-        path_to_test_labels = os.path.join(self.path_to_testset, "/annotations")
+        path_to_test_images = os.path.join(self.path_to_testset, "images")
+        path_to_test_labels = os.path.join(self.path_to_testset, "annotations")
         test_images = os.listdir(path_to_test_images)
         gt_classes = []
         gt_boxes = []
@@ -515,7 +516,10 @@ class Module():
         pred_scores = []
         for image in test_images:
             path_to_image = os.path.join(path_to_test_images, image)
-            img = self.prepocess_img(path_to_image)
+            img_raw = tf.image.decode_image(open(path_to_image, 'rb').read(), channels=3)
+
+            img = tf.expand_dims(img_raw, 0)
+            img = self.transform_image(img, 416)
             with open(os.path.join(path_to_test_labels, image[:-4]+".txt"), "r") as f:
                 for line in f:
                     label = line.split(" ")
@@ -531,15 +535,12 @@ class Module():
             "boxes": gt_boxes,
             "labels": gt_classes
         }
-        pred_boxes = pred_boxes.tolist()
-        pred_scores = pred_scores.tolist()
-        pred_classes = pred_classes.tolist()
 
         pred = {'boxes':pred_boxes,'labels':pred_classes, 'scores':pred_scores}
         mAP = calculate_map(gt, pred, 0.5)
         print("mAP:", mAP)
         with open("./checkpoints/mAPs.txt", "a") as f:
-            f.write(mAP+"\n")
+            f.write(str(mAP)+"\n")
 
 
     def quantize_tflite_model(self, quantization):
