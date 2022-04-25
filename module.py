@@ -245,8 +245,9 @@ class Module():
             for label in pseudo_labels:
                 confidence_score += label[1]
                 boxes.append(label[0])
-            confidence_score = confidence_score/len(pseudo_labels)
-            labels_and_confidence.append((boxes, confidence_score, i))
+            if len(pseudo_labels) != 0:
+                confidence_score = confidence_score/len(pseudo_labels)
+                labels_and_confidence.append((boxes, confidence_score, i))
             i += 1
         return labels_and_confidence
 
@@ -286,7 +287,7 @@ class Module():
         for sample in self.weak_labeled_pool.get_all_samples():
             union_set.append(sample)
         self.load_model(training=False)
-        self.samples = self.active_smapling(union_set, 10)
+        self.samples = self.active_smapling(union_set, 5)
         #delete samples from pools
         for sample in self.samples:
             if sample in self.unlabeled_pool:

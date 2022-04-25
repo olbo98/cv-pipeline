@@ -11,6 +11,7 @@ checkpoints/*
 !checkpoints/readme.txt
 logs/*
 quantized_models/*
+saved_model/*
 
 #Cache that is not necessary to push
 __pycache__/
