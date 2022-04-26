@@ -24,6 +24,7 @@ import time
 import numpy as np
 import shutil
 import random
+from mapcalc import calculate_map
 
 class Module():
     """
@@ -545,4 +546,63 @@ class Module():
                 f.write(float16_quantized_model)
             print("Float16 quantized model in Mb:", os.path.getsize("./quantized_models/float16_quantized_model.tflite") / float(2**20))
 
-            
+    #Test the quantized model after training  
+    def test_quantized_model(self, quantization):
+        path_to_test_images = os.path.join(self.path_to_testset, "images")
+        path_to_test_labels = os.path.join(self.path_to_testset, "annotations")
+        test_images = os.listdir(path_to_test_images)
+        gt_classes = []
+        gt_boxes = []
+        pred_classes = []
+        pred_boxes = []
+        pred_scores = []
+
+        if quantization == 'dynamic':
+            interpreter = tf.lite.Interpreter(model_path="./quantized_models/dynamic_quantized_model.tflite")
+
+        if quantization == 'fullInt':   
+            interpreter = tf.lite.Interpreter(model_path="./quantized_models/fullInt_quantized_model.tflite")
+        
+        if quantization == 'float16':   
+            interpreter = tf.lite.Interpreter(model_path="./quantized_models/float16_quantized_model.tflite")
+
+        for image in test_images:
+            path_to_image = os.path.join(path_to_test_images, image)
+            img_raw = tf.image.decode_image(open(path_to_image, 'rb').read(), channels=3)
+
+            img = tf.expand_dims(img_raw, 0)
+            img = self.transform_image(img, 416)
+            with open(os.path.join(path_to_test_labels, image[:-4]+".txt"), "r") as f:
+                for line in f:
+                    label = line.split(" ")
+                    label = [float(x) for x in label]
+                    gt_classes.append(label.pop())
+                    gt_boxes.append(label)
+
+            interpreter.allocate_tensors()
+
+            # Get input and output tensors.
+            input_details = interpreter.get_input_details()
+            output_details = interpreter.get_output_details()
+
+            interpreter.set_tensor(input_details[0]['index'], img)
+            interpreter.invoke()
+
+            pred_classes = interpreter.get_tensor(output_details[0]['index'])
+            pred_boxes = interpreter.get_tensor(output_details[2]['index'])
+            pred_scores = interpreter.get_tensor(output_details[3]['index'])
+
+            for box, score, c in zip(pred_boxes, pred_scores, pred_classes):
+                pred_classes.append(c)
+                pred_boxes.append(box)
+                pred_scores.append(score)
+
+        gt = {
+            "boxes": gt_boxes,
+            "labels": gt_classes
+        }
+
+        pred = {'boxes':pred_boxes[0],'labels':pred_classes[0], 'scores':pred_scores[0]}
+
+        mAP = calculate_map(gt, pred, 0.5)
+        print("mAP:", mAP)
