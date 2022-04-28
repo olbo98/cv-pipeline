@@ -13,10 +13,10 @@ import shutil #REMOVE
 
 def main():
     #labeled images
-    path_to_labeled_imgs = "D:/Exjobb/cv-pipeline/labeled_images"
-    path_to_labels = "D:/Exjobb/cv-pipeline/annotations"
-    path_to_unlabeled_imgs = "D:/Exjobb/cv-pipeline/unlabeled_images"
-    path_to_weak_imgs = "D:/Exjobb/cv-pipeline/weaklabeled_images"
+    path_to_labeled_imgs = "D:/Voi/cv-pipeline/labeled_imgs"
+    path_to_labels = "D:/Voi/cv-pipeline/labels"
+    path_to_unlabeled_imgs = "D:/Voi/cv-pipeline/unlabeled_imgs"
+    path_to_weak_imgs = "D:/Voi/cv-pipeline/weak_imgs"
     
     window = tk.Tk()
     view = View(window)
