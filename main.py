@@ -12,7 +12,6 @@ import shutil #REMOVE
 
 
 def main():
-    #labeled images
     path_to_labeled_imgs = "D:/Exjobb/cv-pipeline/labeled_images"
     path_to_labels = "D:/Exjobb/cv-pipeline/annotations"
     path_to_unlabeled_imgs = "D:/Exjobb/cv-pipeline/unlabeled_images"
