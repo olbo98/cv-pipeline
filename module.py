@@ -481,7 +481,12 @@ class Module():
                         list(map(lambda x: np.sum(x.numpy()), pred_loss))))
                     avg_loss.update_state(total_loss)
 
-                for batch, (images, labels) in enumerate(val_dataset):
+                for (images, labels) in val_dataset:
+                    img = self.prepocess_img(image)
+                    img = self.transform_image(img, 416)
+                    img = tf.expand_dims(img, 0)
+                    labels = tf.expand_dims(labels, 0)
+                    labels = utils.transform_targets(labels, yolo_anchors, yolo_anchor_masks, 416)
                     outputs = model(images)
                     regularization_loss = tf.reduce_sum(model.losses)
                     pred_loss = []
@@ -489,11 +494,19 @@ class Module():
                         pred_loss.append(loss_fn(label, output))
                     total_loss = tf.reduce_sum(pred_loss) + regularization_loss
 
-                    logging.info("{}_val_{}, {}, {}".format(
-                        epoch, batch, total_loss.numpy(),
+                    print("{}_val, {}, {}".format(
+                        epoch, total_loss.numpy(),
+                        list(map(lambda x: np.sum(x.numpy()), pred_loss))))
+                    logging.info("{}_val, {}, {}".format(
+                        epoch, total_loss.numpy(),
                         list(map(lambda x: np.sum(x.numpy()), pred_loss))))
                     avg_val_loss.update_state(total_loss)
-
+                
+                print("{}, train: {}, val: {}".format(
+                    epoch,
+                    avg_loss.result().numpy(),
+                    avg_val_loss.result().numpy()))
+                print("EPOCH {} FINISHED".format(epoch))
                 logging.info("{}, train: {}, val: {}".format(
                     epoch,
                     avg_loss.result().numpy(),
@@ -503,6 +516,7 @@ class Module():
                 avg_val_loss.reset_states()
                 model.save_weights(
                     'checkpoints/yolov3_train.tf')
+                model.save('./saved_model/yolo_model')
         else:
             log_dir = 'logs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
             callbacks = [
