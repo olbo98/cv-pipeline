@@ -481,13 +481,13 @@ class Module():
                         list(map(lambda x: np.sum(x.numpy()), pred_loss))))
                     avg_loss.update_state(total_loss)
 
-                for (images, labels) in val_dataset:
+                for (image, labels) in val_dataset:
                     img = self.prepocess_img(image)
                     img = self.transform_image(img, 416)
                     img = tf.expand_dims(img, 0)
                     labels = tf.expand_dims(labels, 0)
                     labels = utils.transform_targets(labels, yolo_anchors, yolo_anchor_masks, 416)
-                    outputs = model(images)
+                    outputs = model(img)
                     regularization_loss = tf.reduce_sum(model.losses)
                     pred_loss = []
                     for output, label, loss_fn in zip(outputs, labels, loss):
