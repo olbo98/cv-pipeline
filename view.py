@@ -37,6 +37,7 @@ class View():
         self.traffLights_btn = tk.Button(self.canvas_buttons, text="Label traffic lights", width=button_width, height=button_height, command= lambda c=3:self.change_btn_color(c))
         self.traffSigns_btn = tk.Button(self.canvas_buttons, text="Label traffic signs", width=button_width, height=button_height, command= lambda c=4:self.change_btn_color(c))
         self.active_btn = self.pedestrians_btn
+        self.counter = self.canvas_buttons.create_text(150, 850)
         self.active_class = 0.0
         self.canvas_buttons.pack(side="left")
 
@@ -44,6 +45,7 @@ class View():
         self.id2 = self.canvas_text.create_text(180, 110)
         self.id3 = self.canvas_text.create_text(180, 190)
         self.id4 = self.canvas_text.create_text(180, 150)
+        self.id5 = self.canvas_text.create_text(180, 230)
         self.window.attributes('-fullscreen', True)
         
     def change_btn_color(self,c):
@@ -112,8 +114,9 @@ class View():
         active_color = self.active_btn.cget("bg")
         self.ID = self.canvas_image.create_rectangle(x0,y0,x1,y1, width=3, outline=active_color)
         
-    def show_img(self,image):
-
+    def show_img(self,image, img_num, total_img_num):
+        self.canvas_text.itemconfig(self.id5, text=str(img_num) + "/" + str(total_img_num))
+        self.canvas_buttons.itemconfig(self.counter, text=str(img_num) + "/" + str(total_img_num))
         img = Image.open(image)
         img = img.resize((int(1280*0.899),int(966*0.899)))
         self.img = ImageTk.PhotoImage(img)

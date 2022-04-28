@@ -24,6 +24,7 @@ import time
 import numpy as np
 import shutil
 import random
+from mapcalc import calculate_map
 
 class Module():
     """
@@ -32,7 +33,8 @@ class Module():
     save coordinates, annotates images to then send to the interface
     as well as pseudolabels the images.
     """
-    def __init__(self, view: View, path_to_labeled_imgs, path_to_labels, path_to_unlabeled_imgs, path_to_weak_imgs):
+    def __init__(self, view: View, path_to_labeled_imgs, path_to_labels, path_to_unlabeled_imgs, path_to_weak_imgs, path_to_testset):
+        self.i = 0
         self.set_images = []
         self.view = view
         self.circle_coords = {}
@@ -43,6 +45,7 @@ class Module():
         self.path_to_labels = path_to_labels
         self.path_to_unlabeled_imgs = path_to_unlabeled_imgs
         self.path_to_weak_imgs = path_to_weak_imgs
+        self.path_to_testset = path_to_testset
         self.strong_annotations = False 
         self.unlabeled_pool, self.weak_labeled_pool, self.labeled_pool = self.load_pools(self.path_to_unlabeled_imgs, self.path_to_labels, self.path_to_labeled_imgs, self.path_to_weak_imgs)
         self.curr_episode = 1
@@ -70,7 +73,7 @@ class Module():
         batch_size = 1
         learning_rate=1e-5
         model = YoloV3(416, training=training, classes=5)
-        #model.load_weights("./checkpoints/yolov3.tf").expect_partial()
+        model.load_weights("./checkpoints/yolov3_train.tf").expect_partial()
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         loss = [YoloLoss(yolo_anchors[mask], classes=5) for mask in yolo_anchor_masks]
 
@@ -279,13 +282,14 @@ class Module():
 
         if self.labeled_pool.get_len() != 0:
             self.train_model()
+        self.load_model(training=False)
+        self.test_model()
             
         #sample from unlabeled pool and weak labeled pool
         union_set = self.unlabeled_pool
         for sample in self.weak_labeled_pool.get_all_samples():
             union_set.append(sample)
-        self.load_model(training=False)
-        self.samples = self.active_smapling(union_set, 500)
+        self.samples = self.active_smapling(union_set, 100)
         #delete samples from pools
         for sample in self.samples:
             if sample in self.unlabeled_pool:
@@ -368,6 +372,7 @@ class Module():
         try:
             image = next(self.set_images)
             self.active_image = image
+            self.i += 1
         except StopIteration:
             self.i = 0
             if self.strong_annotations == False:
@@ -375,7 +380,10 @@ class Module():
             elif self.strong_annotations == True:
                 self.fifth_state()
 
-        self.view.show_img(self.active_image)
+        if self.strong_annotations == False:
+            self.view.show_img(self.active_image, self.i, len(self.circle_coords))
+        elif self.strong_annotations == True:
+            self.view.show_img(self.active_image, self.i, len(self.rect_coords))
 
     def get_circle_coords(self):
         return self.circle_coords
@@ -411,8 +419,8 @@ class Module():
             img = self.prepocess_img(image)
             x_train.append(img)
             y_train.append(labels)
-
-        x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.33)
+        
+        x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, shuffle=False)
 
         y_train = tf.ragged.constant(y_train)
         y_val = tf.ragged.constant(y_val)
@@ -422,7 +430,7 @@ class Module():
         train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
         val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
         
-        train_dataset = train_dataset.shuffle(buffer_size=512)
+        #train_dataset = train_dataset.shuffle(buffer_size=512)
         train_dataset = train_dataset.batch(batch_size)
       
         train_dataset = train_dataset.map(lambda x, y: (self.transform_image(x,416), utils.transform_targets(y, anchors, anchor_masks, 416)))
@@ -500,8 +508,45 @@ class Module():
     def train_model(self):# 
         #setup datasets
         train_dataset, val_dataset = self._setup_datasets(self.labeled_pool, self.weak_labeled_pool, yolo_anchors, yolo_anchor_masks, self.batch_size)
-        self._train_loop(self.model, self.epochs, train_dataset, val_dataset, self.optimizer, self.loss)
+        self._train_loop(self.model, self.epochs, train_dataset, val_dataset, self.optimizer, self.loss, debug=False)
    
+    def test_model(self):
+        path_to_test_images = os.path.join(self.path_to_testset, "images")
+        path_to_test_labels = os.path.join(self.path_to_testset, "annotations")
+        test_images = os.listdir(path_to_test_images)
+        gt_classes = []
+        gt_boxes = []
+        pred_classes = []
+        pred_boxes = []
+        pred_scores = []
+        for image in test_images:
+            path_to_image = os.path.join(path_to_test_images, image)
+            img_raw = tf.image.decode_image(open(path_to_image, 'rb').read(), channels=3)
+
+            img = tf.expand_dims(img_raw, 0)
+            img = self.transform_image(img, 416)
+            with open(os.path.join(path_to_test_labels, image[:-4]+".txt"), "r") as f:
+                for line in f:
+                    label = line.split(" ")
+                    label = [float(x) for x in label]
+                    gt_classes.append(label.pop())
+                    gt_boxes.append(label)
+            boxes, scores, classes, _ = self.model.predict(img)
+            for box, score, c in zip(boxes[0], scores[0], classes[0]):
+                pred_classes.append(c)
+                pred_boxes.append(box)
+                pred_scores.append(score)
+        gt = {
+            "boxes": gt_boxes,
+            "labels": gt_classes
+        }
+
+        pred = {'boxes':pred_boxes,'labels':pred_classes, 'scores':pred_scores}
+        mAP = calculate_map(gt, pred, 0.5)
+        print("mAP:", mAP)
+        with open("./checkpoints/mAPs.txt", "a") as f:
+            f.write(str(mAP)+"\n")
+
 
     def quantize_tflite_model(self, quantization):
         #self.model = YoloV3(416, classes=80)
