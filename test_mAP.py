@@ -34,7 +34,7 @@ def main():
     print(nums)
     print(labels)
     print(classes[0])
-    #print(len(scores))
+    print(scores)
 
     pred = {'boxes':boxes[0],'labels':classes[0], 'scores':scores[0]}
     print(calculate_map(gt, pred, 1))
