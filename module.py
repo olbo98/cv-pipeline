@@ -34,6 +34,7 @@ class Module():
     as well as pseudolabels the images.
     """
     def __init__(self, view: View, path_to_labeled_imgs, path_to_labels, path_to_unlabeled_imgs, path_to_weak_imgs, path_to_testset):
+        self.i = 0
         self.set_images = []
         self.view = view
         self.circle_coords = {}
@@ -72,7 +73,7 @@ class Module():
         batch_size = 1
         learning_rate=1e-5
         model = YoloV3(416, training=training, classes=5)
-        #model.load_weights("./checkpoints/yolov3.tf").expect_partial()
+        model.load_weights("./checkpoints/yolov3_train.tf").expect_partial()
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         loss = [YoloLoss(yolo_anchors[mask], classes=5) for mask in yolo_anchor_masks]
 
@@ -288,7 +289,7 @@ class Module():
         union_set = self.unlabeled_pool
         for sample in self.weak_labeled_pool.get_all_samples():
             union_set.append(sample)
-        self.samples = self.active_smapling(union_set, 500)
+        self.samples = self.active_smapling(union_set, 100)
         #delete samples from pools
         for sample in self.samples:
             if sample in self.unlabeled_pool:
@@ -371,6 +372,7 @@ class Module():
         try:
             image = next(self.set_images)
             self.active_image = image
+            self.i += 1
         except StopIteration:
             self.i = 0
             if self.strong_annotations == False:
@@ -378,7 +380,10 @@ class Module():
             elif self.strong_annotations == True:
                 self.fifth_state()
 
-        self.view.show_img(self.active_image)
+        if self.strong_annotations == False:
+            self.view.show_img(self.active_image, self.i, len(self.circle_coords))
+        elif self.strong_annotations == True:
+            self.view.show_img(self.active_image, self.i, len(self.rect_coords))
 
     def get_circle_coords(self):
         return self.circle_coords
@@ -414,8 +419,8 @@ class Module():
             img = self.prepocess_img(image)
             x_train.append(img)
             y_train.append(labels)
-
-        x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.33)
+        
+        x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, shuffle=False)
 
         y_train = tf.ragged.constant(y_train)
         y_val = tf.ragged.constant(y_val)
@@ -425,7 +430,7 @@ class Module():
         train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
         val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
         
-        train_dataset = train_dataset.shuffle(buffer_size=512)
+        #train_dataset = train_dataset.shuffle(buffer_size=512)
         train_dataset = train_dataset.batch(batch_size)
       
         train_dataset = train_dataset.map(lambda x, y: (self.transform_image(x,416), utils.transform_targets(y, anchors, anchor_masks, 416)))
@@ -503,7 +508,7 @@ class Module():
     def train_model(self):# 
         #setup datasets
         train_dataset, val_dataset = self._setup_datasets(self.labeled_pool, self.weak_labeled_pool, yolo_anchors, yolo_anchor_masks, self.batch_size)
-        self._train_loop(self.model, self.epochs, train_dataset, val_dataset, self.optimizer, self.loss)
+        self._train_loop(self.model, self.epochs, train_dataset, val_dataset, self.optimizer, self.loss, debug=False)
    
     def test_model(self):
         path_to_test_images = os.path.join(self.path_to_testset, "images")
