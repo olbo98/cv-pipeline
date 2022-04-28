@@ -411,13 +411,15 @@ class Module():
         
         for i in range(0, labeled_pool.get_len()):
             image, labels = labeled_pool.get_sample(i)
-            img = self.prepocess_img(image)
-            x_train.append(img)
+            #img = self.prepocess_img(image)
+            #x_train.append(img)
+            x_train.append(image)
             y_train.append(labels)
         for i in range(0, weak_labeled_pool.get_len()):
             image, labels = weak_labeled_pool.get_sample(i)
-            img = self.prepocess_img(image)
-            x_train.append(img)
+            #img = self.prepocess_img(image)
+            #x_train.append(img)
+            x_train.append(image)
             y_train.append(labels)
         
         x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, shuffle=False)
@@ -427,19 +429,23 @@ class Module():
         y_train = y_train.to_tensor()
         y_val = y_val.to_tensor()
         
-        train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
-        val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
+        #train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+        #val_dataset = tf.data.Dataset.from_tensor_slices((x_val, y_val))
         
         #train_dataset = train_dataset.shuffle(buffer_size=512)
-        train_dataset = train_dataset.batch(batch_size)
+        #train_dataset = train_dataset.batch(batch_size)
       
-        train_dataset = train_dataset.map(lambda x, y: (self.transform_image(x,416), utils.transform_targets(y, anchors, anchor_masks, 416)))
-        train_dataset = train_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
+        #train_dataset = train_dataset.map(lambda x, y: (self.transform_image(x,416), utils.transform_targets(y, anchors, anchor_masks, 416)))
+        #train_dataset = train_dataset.prefetch(buffer_size=tf.data.experimental.AUTOTUNE)
       
         
-        val_dataset = val_dataset.batch(batch_size)
-        val_dataset = val_dataset.map(lambda x, y: (self.transform_image(x, 416), utils.transform_targets(y, anchors, anchor_masks, 416)))
+        #val_dataset = val_dataset.batch(batch_size)
+        #val_dataset = val_dataset.map(lambda x, y: (self.transform_image(x, 416), utils.transform_targets(y, anchors, anchor_masks, 416)))
 
+        #return train_dataset, val_dataset
+
+        train_dataset = zip(x_train, y_train)
+        val_dataset = zip(x_val, y_val)
         return train_dataset, val_dataset
     
     def _train_loop(self, model, epochs, train_dataset, val_dataset, optimizer, loss, debug=False):
@@ -448,9 +454,14 @@ class Module():
             avg_val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
 
             for epoch in range(1, epochs + 1):
-                for batch, (images, labels) in enumerate(train_dataset):
+                for (image, labels) in train_dataset:
                     with tf.GradientTape() as tape:
-                        outputs = model(images)
+                        img = self.prepocess_img(image)
+                        img = self.transform_image(img, 416)
+                        img = tf.expand_dims(img, 0)
+                        labels = tf.expand_dims(labels, 0)
+                        labels = utils.transform_targets(labels, yolo_anchors, yolo_anchor_masks, 416)
+                        outputs = model(img)
                         
                         regularization_loss = tf.reduce_sum(model.losses)
                         pred_loss = []
@@ -461,10 +472,12 @@ class Module():
                     grads = tape.gradient(total_loss, model.trainable_variables)
                     optimizer.apply_gradients(
                         zip(grads, model.trainable_variables))
-                    
-                    
-                    logging.info("{}_train_{}, {}, {}".format(
-                        epoch, batch, total_loss.numpy(),
+                    print("{}_train, {}, {}".format(
+                        epoch, total_loss.numpy(),
+                        list(map(lambda x: np.sum(x.numpy()), pred_loss))))
+
+                    logging.info("{}_train, {}, {}".format(
+                        epoch, total_loss.numpy(),
                         list(map(lambda x: np.sum(x.numpy()), pred_loss))))
                     avg_loss.update_state(total_loss)
 
@@ -489,7 +502,7 @@ class Module():
                 avg_loss.reset_states()
                 avg_val_loss.reset_states()
                 model.save_weights(
-                    'checkpoints/yolov3_train_{}.tf'.format(epoch))
+                    'checkpoints/yolov3_train.tf')
         else:
             log_dir = 'logs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
             callbacks = [
@@ -508,7 +521,7 @@ class Module():
     def train_model(self):# 
         #setup datasets
         train_dataset, val_dataset = self._setup_datasets(self.labeled_pool, self.weak_labeled_pool, yolo_anchors, yolo_anchor_masks, self.batch_size)
-        self._train_loop(self.model, self.epochs, train_dataset, val_dataset, self.optimizer, self.loss, debug=False)
+        self._train_loop(self.model, self.epochs, train_dataset, val_dataset, self.optimizer, self.loss, debug=True)
    
     def test_model(self):
         path_to_test_images = os.path.join(self.path_to_testset, "images")

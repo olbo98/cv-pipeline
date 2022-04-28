@@ -6,9 +6,6 @@ from module import Module
 from view import View
 from controller import Controller
 import numpy as np
-from PIL import Image
-from pool import Pool
-import shutil #REMOVE
 
 
 def main():
