@@ -422,7 +422,7 @@ class Module():
             x_train.append(image)
             y_train.append(labels)
         
-        x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, shuffle=False)
+        x_train, x_val, y_train, y_val = train_test_split(x_train, y_train, test_size=0.2, shuffle=True)
 
         y_train = tf.ragged.constant(y_train)
         y_val = tf.ragged.constant(y_val)
@@ -444,17 +444,24 @@ class Module():
 
         #return train_dataset, val_dataset
 
-        train_dataset = zip(x_train, y_train)
-        val_dataset = zip(x_val, y_val)
+        train_dataset = (x_train, y_train)
+        val_dataset = (x_val, y_val)
         return train_dataset, val_dataset
     
     def _train_loop(self, model, epochs, train_dataset, val_dataset, optimizer, loss, debug=False):
         if debug:
             avg_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
             avg_val_loss = tf.keras.metrics.Mean('val_loss', dtype=tf.float32)
+            x_train = train_dataset[0]
+            y_train = train_dataset[1]
+            x_val = val_dataset[0]
+            y_val = val_dataset[1]
+            early_stop_count = 0
+            early_stop_threshold = 3
+            min_epoch_loss = float('inf')
 
             for epoch in range(1, epochs + 1):
-                for (image, labels) in train_dataset:
+                for (image, labels) in zip(x_train, y_train):
                     with tf.GradientTape() as tape:
                         img = self.prepocess_img(image)
                         img = self.transform_image(img, 416)
@@ -472,16 +479,16 @@ class Module():
                     grads = tape.gradient(total_loss, model.trainable_variables)
                     optimizer.apply_gradients(
                         zip(grads, model.trainable_variables))
-                    print("{}_train, {}, {}".format(
+                    print("{}_train, {}, {}, {}".format(
                         epoch, total_loss.numpy(),
-                        list(map(lambda x: np.sum(x.numpy()), pred_loss))))
+                        list(map(lambda x: np.sum(x.numpy()), pred_loss)), image))
 
                     logging.info("{}_train, {}, {}".format(
                         epoch, total_loss.numpy(),
                         list(map(lambda x: np.sum(x.numpy()), pred_loss))))
                     avg_loss.update_state(total_loss)
 
-                for (image, labels) in val_dataset:
+                for (image, labels) in zip(x_val, y_val):
                     img = self.prepocess_img(image)
                     img = self.transform_image(img, 416)
                     img = tf.expand_dims(img, 0)
@@ -494,9 +501,9 @@ class Module():
                         pred_loss.append(loss_fn(label, output))
                     total_loss = tf.reduce_sum(pred_loss) + regularization_loss
 
-                    print("{}_val, {}, {}".format(
+                    print("{}_val, {}, {}, {}".format(
                         epoch, total_loss.numpy(),
-                        list(map(lambda x: np.sum(x.numpy()), pred_loss))))
+                        list(map(lambda x: np.sum(x.numpy()), pred_loss)), image))
                     logging.info("{}_val, {}, {}".format(
                         epoch, total_loss.numpy(),
                         list(map(lambda x: np.sum(x.numpy()), pred_loss))))
@@ -517,6 +524,13 @@ class Module():
                 model.save_weights(
                     'checkpoints/yolov3_train.tf')
                 model.save('./saved_model/yolo_model')
+                if avg_val_loss.result().numpy() < min_epoch_loss:
+                    early_stop_count = 0
+                    min_epoch_loss = avg_val_loss.result().numpy()
+                else:
+                    early_stop_count += 1
+                    if early_stop_count > early_stop_threshold:
+                        break
         else:
             log_dir = 'logs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
             callbacks = [
