@@ -25,6 +25,9 @@ import numpy as np
 import shutil
 import random
 from mapcalc import calculate_map
+gpus = tf.config.experimental.list_physical_devices('GPU')
+for gpu in gpus:
+    tf.config.experimental.set_memory_growth(gpu, True)
 
 class Module():
     """
@@ -175,13 +178,15 @@ class Module():
     def active_smapling(self,set, sample_size):
         
         highest_scores = []
+        i = 0
         for image in set:
-            print("SAMPLING IMAGES")
+            print("SAMPLING IMAGE:", str(i) + "/" + str(len(set)))
             img = self.prepocess_img(image)
             img = tf.expand_dims(img, axis=0)
             img = img/255
             _,scores, _,_ = self.model.predict(img)
             highest_scores.append(scores[0][0])
+            i = i + 1
 
         images_and_scores = zip(set, highest_scores)
         sorted_images_and_scores = sorted(images_and_scores, key = lambda x: x[1])
@@ -282,14 +287,17 @@ class Module():
 
         if self.labeled_pool.get_len() != 0:
             self.train_model()
+
         self.load_model(training=False)
-        self.test_model()
+        
+        if self.labeled_pool.get_len() != 0:
+            self.test_model()
             
         #sample from unlabeled pool and weak labeled pool
         union_set = self.unlabeled_pool
         for sample in self.weak_labeled_pool.get_all_samples():
             union_set.append(sample)
-        self.samples = self.active_smapling(union_set, 100)
+        self.samples = self.active_smapling(union_set, 250)
         #delete samples from pools
         for sample in self.samples:
             if sample in self.unlabeled_pool:
