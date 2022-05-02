@@ -566,7 +566,9 @@ class Module():
         pred_classes = []
         pred_boxes = []
         pred_scores = []
+        i = 0
         for image in test_images:
+            print("TESTING IMAGE: ", str(i) + "/" + str(len(test_images)))
             path_to_image = os.path.join(path_to_test_images, image)
             img_raw = tf.image.decode_image(open(path_to_image, 'rb').read(), channels=3)
 
@@ -583,6 +585,7 @@ class Module():
                 pred_classes.append(c)
                 pred_boxes.append(box)
                 pred_scores.append(score)
+            i = i + 1
         gt = {
             "boxes": gt_boxes,
             "labels": gt_classes
