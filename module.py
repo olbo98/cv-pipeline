@@ -175,7 +175,7 @@ class Module():
     def active_smapling(self,set, sample_size):
         
         highest_scores = []
-        i = 0
+        i = 1
         for image in set:
             print("SAMPLING IMAGE:", str(i) + "/" + str(len(set)))
             img = self.prepocess_img(image)
@@ -282,10 +282,10 @@ class Module():
         if self.curr_episode != 1:
             self.load_model(training=True)
 
-        if self.labeled_pool.get_len() != 0:
-            self.train_model()
+        #if self.labeled_pool.get_len() != 0:
+         #   self.train_model()
         self.load_model(training=False)
-        self.test_model()
+        #self.test_model()
             
         #sample from unlabeled pool and weak labeled pool
         union_set = self.unlabeled_pool
@@ -568,7 +568,7 @@ class Module():
         pred_classes = []
         pred_boxes = []
         pred_scores = []
-        i = 0
+        i = 1
         for image in test_images:
             print("TESTING IMAGE: ", str(i) + "/" + str(len(test_images)))
             path_to_image = os.path.join(path_to_test_images, image)
