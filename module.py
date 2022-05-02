@@ -291,7 +291,7 @@ class Module():
         union_set = self.unlabeled_pool
         for sample in self.weak_labeled_pool.get_all_samples():
             union_set.append(sample)
-        self.samples = self.active_smapling(union_set, 100)
+        self.samples = self.active_smapling(union_set, 250)
         #delete samples from pools
         for sample in self.samples:
             if sample in self.unlabeled_pool:
@@ -462,7 +462,7 @@ class Module():
             early_stop_count = 0
             early_stop_threshold = 3
             min_epoch_loss = float('inf')
-            log_dir = 'logs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            log_dir = 'logs/' + datetime.datetime.now().strftime("%Y-%m-%d;%H:%M:%S")
             summary_writer = tf.summary.create_file_writer(logdir=log_dir)
             for epoch in range(1, epochs + 1):
                 for (image, labels) in zip(x_train, y_train):
