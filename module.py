@@ -339,6 +339,7 @@ class Module():
                             f.write("\n")
                         else:
                             f.write(" ")
+        print("LABELS ARE SAVED")
         
         #save weak labeled pool
         for i in range(0, self.weak_labeled_pool.get_len()):
@@ -530,6 +531,7 @@ class Module():
                 if avg_val_loss.result().numpy() < min_epoch_loss:
                     early_stop_count = 0
                     min_epoch_loss = avg_val_loss.result().numpy()
+                    print("saving model and models weights...")
                     model.save_weights(
                     'checkpoints/yolov3_train.tf')
                     model.save('./saved_model/yolo_model')
