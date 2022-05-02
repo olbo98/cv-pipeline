@@ -10,6 +10,7 @@ unlabeled_images/
 checkpoints/*
 !checkpoints/readme.txt
 logs/*
+logs2/
 quantized_models/*
 saved_model/*
 

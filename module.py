@@ -175,13 +175,15 @@ class Module():
     def active_smapling(self,set, sample_size):
         
         highest_scores = []
+        i = 0
         for image in set:
-            print("SAMPLING IMAGES")
+            print("SAMPLING IMAGE:", str(i) + "/" + str(len(set)))
             img = self.prepocess_img(image)
             img = tf.expand_dims(img, axis=0)
             img = img/255
             _,scores, _,_ = self.model.predict(img)
             highest_scores.append(scores[0][0])
+            i = i + 1
 
         images_and_scores = zip(set, highest_scores)
         sorted_images_and_scores = sorted(images_and_scores, key = lambda x: x[1])
@@ -459,7 +461,8 @@ class Module():
             early_stop_count = 0
             early_stop_threshold = 3
             min_epoch_loss = float('inf')
-
+            log_dir = 'logs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            summary_writer = tf.summary.create_file_writer(logdir=log_dir)
             for epoch in range(1, epochs + 1):
                 for (image, labels) in zip(x_train, y_train):
                     with tf.GradientTape() as tape:
@@ -521,18 +524,21 @@ class Module():
 
                 avg_loss.reset_states()
                 avg_val_loss.reset_states()
-                model.save_weights(
-                    'checkpoints/yolov3_train.tf')
-                model.save('./saved_model/yolo_model')
+                with summary_writer.as_default():
+                    tf.summary.scalar('epoch_train_loss_avg', avg_loss.result(), step=optimizer.iterations)
+                    tf.summary.scalar('epoch_val_loss_avg', avg_val_loss.result(), step=optimizer.iterations)
                 if avg_val_loss.result().numpy() < min_epoch_loss:
                     early_stop_count = 0
                     min_epoch_loss = avg_val_loss.result().numpy()
+                    model.save_weights(
+                    'checkpoints/yolov3_train.tf')
+                    model.save('./saved_model/yolo_model')
                 else:
                     early_stop_count += 1
-                    if early_stop_count > early_stop_threshold:
+                    if early_stop_count >= early_stop_threshold:
                         break
         else:
-            log_dir = 'logs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            
             callbacks = [
                 ReduceLROnPlateau(verbose=1),
                 EarlyStopping(patience=3, verbose=1),
