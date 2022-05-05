@@ -251,6 +251,8 @@ class Module():
             if len(pseudo_labels) != 0:
                 confidence_score = confidence_score/len(pseudo_labels)
                 labels_and_confidence.append((boxes, confidence_score, i))
+            else:
+                os.remove(image)
             i += 1
         return labels_and_confidence
 
@@ -282,16 +284,16 @@ class Module():
         if self.curr_episode != 1:
             self.load_model(training=True)
 
-        #if self.labeled_pool.get_len() != 0:
-         #   self.train_model()
+        if self.labeled_pool.get_len() != 0:
+            self.train_model()
         self.load_model(training=False)
-        #self.test_model()
-            
+        self.test_model()
+
         #sample from unlabeled pool and weak labeled pool
         union_set = self.unlabeled_pool
         for sample in self.weak_labeled_pool.get_all_samples():
             union_set.append(sample)
-        self.samples = self.active_smapling(union_set, 250)
+        self.samples = self.active_smapling(union_set, 300)
         #delete samples from pools
         for sample in self.samples:
             if sample in self.unlabeled_pool:
@@ -462,7 +464,7 @@ class Module():
             early_stop_count = 0
             early_stop_threshold = 3
             min_epoch_loss = float('inf')
-            log_dir = 'logs/' + datetime.datetime.now().strftime("%Y-%m-%d;%H:%M:%S")
+            log_dir = 'logs/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
             summary_writer = tf.summary.create_file_writer(logdir=log_dir)
             for epoch in range(1, epochs + 1):
                 for (image, labels) in zip(x_train, y_train):
@@ -523,11 +525,12 @@ class Module():
                     avg_loss.result().numpy(),
                     avg_val_loss.result().numpy()))
 
-                avg_loss.reset_states()
-                avg_val_loss.reset_states()
+                
                 with summary_writer.as_default():
                     tf.summary.scalar('epoch_train_loss_avg', avg_loss.result(), step=optimizer.iterations)
                     tf.summary.scalar('epoch_val_loss_avg', avg_val_loss.result(), step=optimizer.iterations)
+                print("Previous loss: ", min_epoch_loss)
+                print("Current loss: ", avg_val_loss.result().numpy())
                 if avg_val_loss.result().numpy() < min_epoch_loss:
                     early_stop_count = 0
                     min_epoch_loss = avg_val_loss.result().numpy()
@@ -537,8 +540,13 @@ class Module():
                     model.save('./saved_model/yolo_model')
                 else:
                     early_stop_count += 1
+                    print("Early stop count: ", early_stop_count)
                     if early_stop_count >= early_stop_threshold:
+                        print("Early stopping...")
                         break
+
+                avg_loss.reset_states()
+                avg_val_loss.reset_states()
         else:
             
             callbacks = [
@@ -560,8 +568,8 @@ class Module():
         self._train_loop(self.model, self.epochs, train_dataset, val_dataset, self.optimizer, self.loss, debug=True)
    
     def test_model(self):
-        path_to_test_images = os.path.join(self.path_to_testset, "images")
-        path_to_test_labels = os.path.join(self.path_to_testset, "annotations")
+        path_to_test_images = os.path.join(self.path_to_testset, "images2")
+        path_to_test_labels = os.path.join(self.path_to_testset, "annotations2")
         test_images = os.listdir(path_to_test_images)
         gt_classes = []
         gt_boxes = []
@@ -594,6 +602,7 @@ class Module():
         }
 
         pred = {'boxes':pred_boxes,'labels':pred_classes, 'scores':pred_scores}
+        print("Calculating mAP........")
         mAP = calculate_map(gt, pred, 0.5)
         print("mAP:", mAP)
         with open("./checkpoints/mAPs.txt", "a") as f:
