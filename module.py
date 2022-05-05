@@ -615,6 +615,11 @@ class Module():
         #converter = tf.lite.TFLiteConverter.from_keras_model('/saved_model')
 
         converter = tf.lite.TFLiteConverter.from_saved_model('./saved_model/yolo_model')
+        non_quantized_model = converter.convert()
+        with open("./saved_model/yolo_model.tflite", 'wb') as f:
+                f.write(non_quantized_model)
+        print('No quantization model in Mb:', os.path.getsize('./saved_model/yolo_model.tflite') / float(2**20))
+        
         if quantization == 'dynamic':
             converter.optimizations = [tf.lite.Optimize.DEFAULT]
             dynamic_quantized_model = converter.convert()
@@ -650,5 +655,3 @@ class Module():
             with open("./quantized_models/float16_quantized_model.tflite", 'wb') as f:
                 f.write(float16_quantized_model)
             print("Float16 quantized model in Mb:", os.path.getsize("./quantized_models/float16_quantized_model.tflite") / float(2**20))
-
-            
